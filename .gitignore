@@ -1,0 +1,36 @@
+# Go build and test output
+/jobby
+*.exe
+*.test
+*.out
+coverage.html
+__debug_bin*
+
+# Local SQLite databases and journals
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+
+# Temporary and generated directories
+/tmp/
+/dist/
+
+# Editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
