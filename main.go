@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,8 +21,21 @@ import (
 var appFS embed.FS
 
 type overviewData struct {
-	Applications       []applicationView
-	ApplicationSummary string
+	Applications              []applicationView
+	PortalApplications        []portalApplicationView
+	ApplicationSummary        string
+	PortalHeadingCount        string
+	PortalHeadingAction       string
+	PortalCheckSummary        string
+	PortalDescription         string
+	TotalApplications         int
+	OrganizationCount         int
+	OpenCount                 int
+	AppliedCount              int
+	InContactCount            int
+	AcceptedCount             int
+	RejectedAfterContactCount int
+	RejectedNoContactCount    int
 }
 
 type applicationView struct {
@@ -37,6 +51,12 @@ type applicationView struct {
 	LastChecked         string
 	LastCheckedDetail   string
 	LastCheckedIsDue    bool
+}
+
+type portalApplicationView struct {
+	OrganizationName string
+	LastChecked      string
+	daysSinceCheck   int
 }
 
 func main() {
@@ -81,20 +101,55 @@ func main() {
 			return
 		}
 
-		applicationViews := make([]applicationView, 0, len(applications))
+		data := overviewData{
+			TotalApplications: len(applications),
+		}
+		organizations := make(map[int64]struct{})
 		now := time.Now()
 		for _, application := range applications {
-			applicationViews = append(applicationViews, newApplicationView(application, now))
+			organizations[application.OrganizationID] = struct{}{}
+
+			switch application.Status {
+			case "applied":
+				data.AppliedCount++
+			case "in_contact":
+				data.InContactCount++
+			case "accepted":
+				data.AcceptedCount++
+			case "rejected_after_contact":
+				data.RejectedAfterContactCount++
+			case "rejected_no_contact":
+				data.RejectedNoContactCount++
+			}
+
+			if !isOpenStatus(application.Status) {
+				continue
+			}
+
+			data.OpenCount++
+			applicationView := newApplicationView(application, now)
+			data.Applications = append(data.Applications, applicationView)
+			if applicationView.LastCheckedIsDue {
+				data.PortalApplications = append(data.PortalApplications, newPortalApplicationView(application, now))
+			}
+		}
+		data.OrganizationCount = len(organizations)
+
+		data.ApplicationSummary = fmt.Sprintf("Showing all %d open applications", data.OpenCount)
+		if data.OpenCount == 1 {
+			data.ApplicationSummary = "Showing 1 open application"
 		}
 
-		applicationSummary := fmt.Sprintf("Showing all %d applications", len(applicationViews))
-		if len(applicationViews) == 1 {
-			applicationSummary = "Showing 1 application"
+		sort.Slice(data.PortalApplications, func(i, j int) bool {
+			return data.PortalApplications[i].daysSinceCheck > data.PortalApplications[j].daysSinceCheck
+		})
+		data.PortalHeadingCount, data.PortalHeadingAction, data.PortalCheckSummary = portalCopy(len(data.PortalApplications))
+		data.PortalDescription = "These applications have not been checked in seven or more days."
+		if len(data.PortalApplications) == 0 {
+			data.PortalDescription = "You're caught up on portal checks for every open application."
 		}
-
-		data := overviewData{
-			Applications:       applicationViews,
-			ApplicationSummary: applicationSummary,
+		if len(data.PortalApplications) > 3 {
+			data.PortalApplications = data.PortalApplications[:3]
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -108,6 +163,10 @@ func main() {
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func isOpenStatus(status string) bool {
+	return status == "applied" || status == "in_contact"
 }
 
 func newApplicationView(application database.ListApplicationsRow, now time.Time) applicationView {
@@ -127,6 +186,35 @@ func newApplicationView(application database.ListApplicationsRow, now time.Time)
 		LastChecked:         lastChecked,
 		LastCheckedDetail:   lastCheckedDetail,
 		LastCheckedIsDue:    lastCheckedIsDue,
+	}
+}
+
+func newPortalApplicationView(application database.ListApplicationsRow, now time.Time) portalApplicationView {
+	if !application.LastCheckedAt.Valid {
+		return portalApplicationView{
+			OrganizationName: application.OrganizationName,
+			LastChecked:      "Never",
+			daysSinceCheck:   int(^uint(0) >> 1),
+		}
+	}
+
+	checkedAt, _ := time.Parse(time.RFC3339Nano, application.LastCheckedAt.String)
+	daysSinceCheck := int(now.Sub(checkedAt).Hours() / 24)
+	return portalApplicationView{
+		OrganizationName: application.OrganizationName,
+		LastChecked:      fmt.Sprintf("%dd", daysSinceCheck),
+		daysSinceCheck:   daysSinceCheck,
+	}
+}
+
+func portalCopy(count int) (string, string, string) {
+	switch count {
+	case 0:
+		return "No portals", "need checking.", "No open applications are overdue for a portal check"
+	case 1:
+		return "One portal", "needs checking.", "1 needs a portal check"
+	default:
+		return fmt.Sprintf("%d portals", count), "need checking.", fmt.Sprintf("%d need a portal check", count)
 	}
 }
 
