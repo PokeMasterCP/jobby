@@ -794,10 +794,13 @@ h1 em {
 .key-paper { background: var(--paper); }
 
 .outcome-bar {
-  display: grid;
-  grid-template-columns: 11fr 1fr 2fr 3fr;
+  display: flex;
   height: 12px;
   border: 1px solid var(--ink);
+}
+
+.outcome-bar span {
+  flex: var(--share) 1 0;
 }
 
 .outcome-bar span + span {

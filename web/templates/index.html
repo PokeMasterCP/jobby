@@ -25,12 +25,12 @@
         <a href="#applications">
           <span aria-hidden="true">◎</span>
           Applications
-          <small>17</small>
+          <small>{{.TotalApplications}}</small>
         </a>
         <a href="#organizations">
           <span aria-hidden="true">◇</span>
           Organizations
-          <small>14</small>
+          <small>{{.OrganizationCount}}</small>
         </a>
       </nav>
 
@@ -68,22 +68,22 @@
         <section class="metrics" aria-label="Application summary">
           <article class="metric metric-feature">
             <p>Open applications</p>
-            <div><strong>11</strong><span>5 need a portal check</span></div>
+            <div><strong>{{.OpenCount}}</strong><span>{{.PortalCheckSummary}}</span></div>
           </article>
           <article class="metric">
             <p>Applied</p>
-            <strong>08</strong>
+            <strong>{{.AppliedCount}}</strong>
             <span>Awaiting contact</span>
           </article>
           <article class="metric">
             <p>In contact</p>
-            <strong>03</strong>
+            <strong>{{.InContactCount}}</strong>
             <span>Conversations active</span>
           </article>
           <article class="metric metric-success">
             <p>Accepted</p>
-            <strong>01</strong>
-            <span>The good one</span>
+            <strong>{{.AcceptedCount}}</strong>
+            <span>Offers secured</span>
           </article>
         </section>
 
@@ -135,13 +135,23 @@
               <div class="application-empty">
                 <span aria-hidden="true">*</span>
                 <div>
-                  <h3>No applications yet.</h3>
-                  <p>Add your first application when you are ready. Its status and follow-up details will live here.</p>
+                  {{if .TotalApplications}}
+                    <h3>No open applications.</h3>
+                    <p>Applied and in-contact applications will appear here.</p>
+                  {{else}}
+                    <h3>No applications yet.</h3>
+                    <p>Add your first application when you are ready. Its status and follow-up details will live here.</p>
+                  {{end}}
                 </div>
               </div>
               <footer class="panel-footer">
-                <span>Your ledger is ready</span>
-                <span>0 applications</span>
+                {{if .TotalApplications}}
+                  <span>No active applications</span>
+                  <span>{{.TotalApplications}} total</span>
+                {{else}}
+                  <span>Your ledger is ready</span>
+                  <span>0 applications</span>
+                {{end}}
               </footer>
             {{end}}
           </section>
@@ -152,14 +162,16 @@
                 <p class="section-number">03 / Manual round</p>
                 <span class="asterisk" aria-hidden="true">*</span>
               </header>
-              <h2 id="portal-title">Five portals<br>need checking.</h2>
-              <p>These applications have not been checked in seven or more days.</p>
-              <ul>
-                <li><span>Cedar &amp; Coil</span><strong>8d</strong></li>
-                <li><span>Paper Street</span><strong>11d</strong></li>
-                <li><span>Frame.io</span><strong>14d</strong></li>
-              </ul>
-              <button type="button" disabled>Start portal round <span aria-hidden="true">↗</span></button>
+              <h2 id="portal-title">{{.PortalHeadingCount}}<br>{{.PortalHeadingAction}}</h2>
+              <p>{{.PortalDescription}}</p>
+              {{if .PortalApplications}}
+                <ul>
+                  {{range .PortalApplications}}
+                    <li><span>{{.OrganizationName}}</span><strong>{{.LastChecked}}</strong></li>
+                  {{end}}
+                </ul>
+                <button type="button" disabled>Start portal round <span aria-hidden="true">↗</span></button>
+              {{end}}
             </section>
 
             <section class="panel outcome-panel" id="organizations" aria-labelledby="outcome-title">
@@ -168,28 +180,28 @@
                   <p class="section-number">04 / Outcomes</p>
                   <h2 id="outcome-title">The full picture</h2>
                 </div>
-                <span>17 total</span>
+                <span>{{.TotalApplications}} total</span>
               </header>
               <dl class="outcome-list">
                 <div>
                   <dt><span class="key key-ink"></span> Open</dt>
-                  <dd>11</dd>
+                  <dd>{{.OpenCount}}</dd>
                 </div>
                 <div>
                   <dt><span class="key key-orange"></span> Accepted</dt>
-                  <dd>1</dd>
+                  <dd>{{.AcceptedCount}}</dd>
                 </div>
                 <div>
                   <dt><span class="key key-blue"></span> Rejected after contact</dt>
-                  <dd>2</dd>
+                  <dd>{{.RejectedAfterContactCount}}</dd>
                 </div>
                 <div>
                   <dt><span class="key key-paper"></span> Rejected, no contact</dt>
-                  <dd>3</dd>
+                  <dd>{{.RejectedNoContactCount}}</dd>
                 </div>
               </dl>
               <div class="outcome-bar" aria-hidden="true">
-                <span class="bar-open"></span><span class="bar-accepted"></span><span class="bar-contact"></span><span class="bar-no-contact"></span>
+                <span class="bar-open" style="--share: {{.OpenCount}}"></span><span class="bar-accepted" style="--share: {{.AcceptedCount}}"></span><span class="bar-contact" style="--share: {{.RejectedAfterContactCount}}"></span><span class="bar-no-contact" style="--share: {{.RejectedNoContactCount}}"></span>
               </div>
             </section>
           </aside>
