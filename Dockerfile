@@ -4,6 +4,7 @@ WORKDIR /src
 
 COPY go.mod ./
 COPY main.go ./
+COPY web ./web
 
 RUN go build -o /jobby .
 
