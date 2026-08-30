@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
+  <title>Jobby — Search overview</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=app-shell">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <a class="wordmark" href="/" aria-label="Jobby overview">Jobby<span aria-hidden="true">*</span></a>
+        <p class="workspace-label">Personal search desk</p>
+      </div>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a class="active" href="/" aria-current="page">
+          <span aria-hidden="true">▦</span>
+          Overview
+        </a>
+        <a href="#applications">
+          <span aria-hidden="true">◎</span>
+          Applications
+          <small>17</small>
+        </a>
+        <a href="#organizations">
+          <span aria-hidden="true">◇</span>
+          Organizations
+          <small>14</small>
+        </a>
+      </nav>
+
+      <div class="sidebar-note">
+        <span class="note-mark" aria-hidden="true">*</span>
+        <p>Keep the record honest.<br>Keep the search moving.</p>
+      </div>
+
+      <div class="local-status">
+        <span aria-hidden="true"></span>
+        <p>Saved locally<br><strong>just now</strong></p>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="mobile-header">
+        <a class="wordmark" href="/">Jobby<span aria-hidden="true">*</span></a>
+        <span class="local-pill"><i aria-hidden="true"></i> Local</span>
+      </header>
+
+      <main id="main-content">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow"><span>01</span> Search overview</p>
+            <h1>Your search,<br><em>at a glance.</em></h1>
+          </div>
+          <div class="page-actions">
+            <p><span aria-hidden="true"></span> All changes saved locally</p>
+            <button class="primary-button" type="button" disabled>
+              <span aria-hidden="true">+</span> Add application
+            </button>
+          </div>
+        </header>
+
+        <section class="metrics" aria-label="Application summary">
+          <article class="metric metric-feature">
+            <p>Open applications</p>
+            <div><strong>11</strong><span>5 need a portal check</span></div>
+          </article>
+          <article class="metric">
+            <p>Applied</p>
+            <strong>08</strong>
+            <span>Awaiting contact</span>
+          </article>
+          <article class="metric">
+            <p>In contact</p>
+            <strong>03</strong>
+            <span>Conversations active</span>
+          </article>
+          <article class="metric metric-success">
+            <p>Accepted</p>
+            <strong>01</strong>
+            <span>The good one</span>
+          </article>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel applications-panel" id="applications" aria-labelledby="applications-title">
+            <header class="panel-header">
+              <div>
+                <p class="section-number">02 / Active ledger</p>
+                <h2 id="applications-title">Applications</h2>
+              </div>
+              <button class="quiet-button" type="button" disabled>View all <span aria-hidden="true">→</span></button>
+            </header>
+
+            <div class="application-labels" aria-hidden="true">
+              <span>Organization / role</span>
+              <span>Salary</span>
+              <span>Location</span>
+              <span>Status</span>
+              <span>Last checked</span>
+            </div>
+
+            <ol class="application-list">
+              <li>
+                <div class="application-identity">
+                  <span class="org-mark mark-yellow">N</span>
+                  <div>
+                    <strong>Northstar Labs</strong>
+                    <span>Product Engineer</span>
+                  </div>
+                </div>
+                <p class="salary">$125–150K</p>
+                <p class="location"><span aria-hidden="true">⌂</span> Remote</p>
+                <span class="status-tag status-contact">In contact</span>
+                <p class="last-checked"><strong>Today</strong><span>9:42 AM</span></p>
+              </li>
+              <li>
+                <div class="application-identity">
+                  <span class="org-mark mark-blue">B</span>
+                  <div>
+                    <strong>Brightwell</strong>
+                    <span>Software Engineer</span>
+                  </div>
+                </div>
+                <p class="salary">$110–135K</p>
+                <p class="location"><span aria-hidden="true">⌖</span> Local</p>
+                <span class="status-tag status-applied">Applied</span>
+                <p class="last-checked"><strong>3 days ago</strong><span>Check portal ↗</span></p>
+              </li>
+              <li>
+                <div class="application-identity">
+                  <span class="org-mark mark-orange">C</span>
+                  <div>
+                    <strong>Cedar &amp; Coil</strong>
+                    <span>Senior Backend Engineer</span>
+                  </div>
+                </div>
+                <p class="salary">$145K</p>
+                <p class="location"><span aria-hidden="true">⌂</span> Remote</p>
+                <span class="status-tag status-applied">Applied</span>
+                <p class="last-checked is-due"><strong>8 days ago</strong><span>Check portal ↗</span></p>
+              </li>
+              <li>
+                <div class="application-identity">
+                  <span class="org-mark mark-green">F</span>
+                  <div>
+                    <strong>Fieldwork</strong>
+                    <span>Platform Developer</span>
+                  </div>
+                </div>
+                <p class="salary">$130–155K</p>
+                <p class="location"><span aria-hidden="true">⌂</span> Remote</p>
+                <span class="status-tag status-contact">In contact</span>
+                <p class="last-checked"><strong>Yesterday</strong><span>4:15 PM</span></p>
+              </li>
+            </ol>
+
+            <footer class="panel-footer">
+              <span>Showing 4 of 11 open applications</span>
+              <span>Sorted by last updated</span>
+            </footer>
+          </section>
+
+          <aside class="side-stack">
+            <section class="panel portal-panel" aria-labelledby="portal-title">
+              <header>
+                <p class="section-number">03 / Manual round</p>
+                <span class="asterisk" aria-hidden="true">*</span>
+              </header>
+              <h2 id="portal-title">Five portals<br>need checking.</h2>
+              <p>These applications have not been checked in seven or more days.</p>
+              <ul>
+                <li><span>Cedar &amp; Coil</span><strong>8d</strong></li>
+                <li><span>Paper Street</span><strong>11d</strong></li>
+                <li><span>Frame.io</span><strong>14d</strong></li>
+              </ul>
+              <button type="button" disabled>Start portal round <span aria-hidden="true">↗</span></button>
+            </section>
+
+            <section class="panel outcome-panel" id="organizations" aria-labelledby="outcome-title">
+              <header class="small-panel-header">
+                <div>
+                  <p class="section-number">04 / Outcomes</p>
+                  <h2 id="outcome-title">The full picture</h2>
+                </div>
+                <span>17 total</span>
+              </header>
+              <dl class="outcome-list">
+                <div>
+                  <dt><span class="key key-ink"></span> Open</dt>
+                  <dd>11</dd>
+                </div>
+                <div>
+                  <dt><span class="key key-orange"></span> Accepted</dt>
+                  <dd>1</dd>
+                </div>
+                <div>
+                  <dt><span class="key key-blue"></span> Rejected after contact</dt>
+                  <dd>2</dd>
+                </div>
+                <div>
+                  <dt><span class="key key-paper"></span> Rejected, no contact</dt>
+                  <dd>3</dd>
+                </div>
+              </dl>
+              <div class="outcome-bar" aria-hidden="true">
+                <span class="bar-open"></span><span class="bar-accepted"></span><span class="bar-contact"></span><span class="bar-no-contact"></span>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
