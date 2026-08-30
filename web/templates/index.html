@@ -97,73 +97,53 @@
               <button class="quiet-button" type="button" disabled>View all <span aria-hidden="true">→</span></button>
             </header>
 
-            <div class="application-labels" aria-hidden="true">
-              <span>Organization / role</span>
-              <span>Salary</span>
-              <span>Location</span>
-              <span>Status</span>
-              <span>Last checked</span>
-            </div>
+            {{if .Applications}}
+              <div class="application-labels" aria-hidden="true">
+                <span>Organization / role</span>
+                <span>Salary</span>
+                <span>Location</span>
+                <span>Status</span>
+                <span>Last checked</span>
+              </div>
 
-            <ol class="application-list">
-              <li>
-                <div class="application-identity">
-                  <span class="org-mark mark-yellow">N</span>
-                  <div>
-                    <strong>Northstar Labs</strong>
-                    <span>Product Engineer</span>
-                  </div>
-                </div>
-                <p class="salary">$125–150K</p>
-                <p class="location"><span aria-hidden="true">⌂</span> Remote</p>
-                <span class="status-tag status-contact">In contact</span>
-                <p class="last-checked"><strong>Today</strong><span>9:42 AM</span></p>
-              </li>
-              <li>
-                <div class="application-identity">
-                  <span class="org-mark mark-blue">B</span>
-                  <div>
-                    <strong>Brightwell</strong>
-                    <span>Software Engineer</span>
-                  </div>
-                </div>
-                <p class="salary">$110–135K</p>
-                <p class="location"><span aria-hidden="true">⌖</span> Local</p>
-                <span class="status-tag status-applied">Applied</span>
-                <p class="last-checked"><strong>3 days ago</strong><span>Check portal ↗</span></p>
-              </li>
-              <li>
-                <div class="application-identity">
-                  <span class="org-mark mark-orange">C</span>
-                  <div>
-                    <strong>Cedar &amp; Coil</strong>
-                    <span>Senior Backend Engineer</span>
-                  </div>
-                </div>
-                <p class="salary">$145K</p>
-                <p class="location"><span aria-hidden="true">⌂</span> Remote</p>
-                <span class="status-tag status-applied">Applied</span>
-                <p class="last-checked is-due"><strong>8 days ago</strong><span>Check portal ↗</span></p>
-              </li>
-              <li>
-                <div class="application-identity">
-                  <span class="org-mark mark-green">F</span>
-                  <div>
-                    <strong>Fieldwork</strong>
-                    <span>Platform Developer</span>
-                  </div>
-                </div>
-                <p class="salary">$130–155K</p>
-                <p class="location"><span aria-hidden="true">⌂</span> Remote</p>
-                <span class="status-tag status-contact">In contact</span>
-                <p class="last-checked"><strong>Yesterday</strong><span>4:15 PM</span></p>
-              </li>
-            </ol>
+              <ol class="application-list">
+                {{range .Applications}}
+                  <li>
+                    <div class="application-identity">
+                      <span class="org-mark {{.OrganizationMark}}">{{.OrganizationInitial}}</span>
+                      <div>
+                        <strong>{{.OrganizationName}}</strong>
+                        <span>{{.RoleTitle}}</span>
+                      </div>
+                    </div>
+                    <p class="salary">{{.Salary}}</p>
+                    <p class="location"><span aria-hidden="true">{{.LocationIcon}}</span> {{.Location}}</p>
+                    <span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span>
+                    <p class="last-checked{{if .LastCheckedIsDue}} is-due{{end}}">
+                      <strong>{{.LastChecked}}</strong>
+                      {{if .LastCheckedDetail}}<span>{{.LastCheckedDetail}}</span>{{end}}
+                    </p>
+                  </li>
+                {{end}}
+              </ol>
 
-            <footer class="panel-footer">
-              <span>Showing 4 of 11 open applications</span>
-              <span>Sorted by last updated</span>
-            </footer>
+              <footer class="panel-footer">
+                <span>{{.ApplicationSummary}}</span>
+                <span>Sorted by newest added</span>
+              </footer>
+            {{else}}
+              <div class="application-empty">
+                <span aria-hidden="true">*</span>
+                <div>
+                  <h3>No applications yet.</h3>
+                  <p>Add your first application when you are ready. Its status and follow-up details will live here.</p>
+                </div>
+              </div>
+              <footer class="panel-footer">
+                <span>Your ledger is ready</span>
+                <span>0 applications</span>
+              </footer>
+            {{end}}
           </section>
 
           <aside class="side-stack">
