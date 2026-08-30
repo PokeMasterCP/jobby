@@ -2,8 +2,12 @@ FROM golang:1.27-alpine AS build
 
 WORKDIR /src
 
-COPY go.mod ./
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY main.go ./
+COPY db/migrations ./db/migrations
+COPY internal ./internal
 COPY web ./web
 
 RUN go build -o /jobby .
