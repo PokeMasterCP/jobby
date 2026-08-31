@@ -10,6 +10,77 @@ import (
 	"database/sql"
 )
 
+const createApplication = `-- name: CreateApplication :one
+INSERT INTO applications (
+    organization_id,
+    role_title,
+    posting_url,
+    salary_min,
+    salary_max,
+    work_location,
+    applied_at,
+    last_checked_at,
+    notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?)
+RETURNING
+    id,
+    organization_id,
+    role_title,
+    status,
+    posting_url,
+    salary_min,
+    salary_max,
+    work_location,
+    applied_at,
+    status_changed_at,
+    last_checked_at,
+    notes,
+    created_at,
+    updated_at
+`
+
+type CreateApplicationParams struct {
+	OrganizationID int64
+	RoleTitle      string
+	PostingUrl     sql.NullString
+	SalaryMin      sql.NullInt64
+	SalaryMax      sql.NullInt64
+	WorkLocation   string
+	AppliedAt      sql.NullString
+	Notes          sql.NullString
+}
+
+func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationParams) (Application, error) {
+	row := q.db.QueryRowContext(ctx, createApplication,
+		arg.OrganizationID,
+		arg.RoleTitle,
+		arg.PostingUrl,
+		arg.SalaryMin,
+		arg.SalaryMax,
+		arg.WorkLocation,
+		arg.AppliedAt,
+		arg.Notes,
+	)
+	var i Application
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.RoleTitle,
+		&i.Status,
+		&i.PostingUrl,
+		&i.SalaryMin,
+		&i.SalaryMax,
+		&i.WorkLocation,
+		&i.AppliedAt,
+		&i.StatusChangedAt,
+		&i.LastCheckedAt,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listApplications = `-- name: ListApplications :many
 SELECT
     applications.id,

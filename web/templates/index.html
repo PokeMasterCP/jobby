@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
   <title>Jobby — Search overview</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=app-shell">
+  <link rel="stylesheet" href="/static/css/styles.css?v=application-form">
+  <script src="/static/js/application-form.js?v=application-form" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -59,7 +60,7 @@
           </div>
           <div class="page-actions">
             <p><span aria-hidden="true"></span> All changes saved locally</p>
-            <button class="primary-button" type="button" disabled>
+            <button class="primary-button" type="button" aria-haspopup="dialog" data-open-application-dialog>
               <span aria-hidden="true">+</span> Add application
             </button>
           </div>
@@ -209,5 +210,88 @@
       </main>
     </div>
   </div>
+
+  <dialog class="application-dialog" id="application-dialog" aria-labelledby="application-dialog-title" {{if .ApplicationForm.HasErrors}}data-open-on-load{{end}}>
+    <section class="application-dialog-card">
+      <header class="application-dialog-header">
+        <div>
+          <p class="section-number">05 / New record</p>
+          <h2 id="application-dialog-title">Add an application</h2>
+        </div>
+        <button class="dialog-close" type="button" aria-label="Close application form" data-close-application-dialog>×</button>
+      </header>
+
+      <form class="application-form" method="post" action="/applications">
+        {{if .ApplicationForm.GeneralError}}
+          <p class="application-form-alert" role="alert">{{.ApplicationForm.GeneralError}}</p>
+        {{end}}
+        <p class="application-form-intro">New applications begin with an <strong>Applied</strong> status. Add what you know now; optional details can be filled in later.</p>
+
+        <div class="application-form-grid">
+          <label class="form-field form-field-wide">
+            <span>Organization <small>Required</small></span>
+            <input type="text" name="organization_name" list="organization-options" autocomplete="organization" placeholder="e.g. Walmart" value="{{.ApplicationForm.OrganizationName}}" required autofocus {{if .ApplicationForm.OrganizationError}}aria-invalid="true" aria-describedby="organization-error"{{end}}>
+            {{with .ApplicationForm.OrganizationError}}<small class="form-error" id="organization-error">{{.}}</small>{{end}}
+          </label>
+          <datalist id="organization-options">
+            {{range .OrganizationNames}}<option value="{{.}}"></option>{{end}}
+          </datalist>
+
+          <label class="form-field">
+            <span>Role title <small>Required</small></span>
+            <input type="text" name="role_title" autocomplete="off" placeholder="e.g. Software Engineer" value="{{.ApplicationForm.RoleTitle}}" required {{if .ApplicationForm.RoleTitleError}}aria-invalid="true" aria-describedby="role-title-error"{{end}}>
+            {{with .ApplicationForm.RoleTitleError}}<small class="form-error" id="role-title-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field">
+            <span>Work location <small>Required</small></span>
+            <select name="work_location" required {{if .ApplicationForm.WorkLocationError}}aria-invalid="true" aria-describedby="work-location-error"{{end}}>
+              <option value="" disabled {{if not .ApplicationForm.WorkLocation}}selected{{end}}>Select one</option>
+              <option value="remote" {{if eq .ApplicationForm.WorkLocation "remote"}}selected{{end}}>Remote</option>
+              <option value="local" {{if eq .ApplicationForm.WorkLocation "local"}}selected{{end}}>Local</option>
+            </select>
+            {{with .ApplicationForm.WorkLocationError}}<small class="form-error" id="work-location-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field form-field-wide">
+            <span>Posting URL <small>Optional</small></span>
+            <input type="url" name="posting_url" inputmode="url" placeholder="https://careers.example.com/jobs/123" value="{{.ApplicationForm.PostingURL}}" {{if .ApplicationForm.PostingURLError}}aria-invalid="true" aria-describedby="posting-url-error"{{end}}>
+            {{with .ApplicationForm.PostingURLError}}<small class="form-error" id="posting-url-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field">
+            <span>Salary minimum <small>Optional</small></span>
+            <input type="number" name="salary_min" min="0" step="1000" inputmode="numeric" placeholder="90000" value="{{.ApplicationForm.SalaryMin}}" {{if .ApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="salary-min-error"{{end}}>
+            {{with .ApplicationForm.SalaryMinError}}<small class="form-error" id="salary-min-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field">
+            <span>Salary maximum <small>Optional</small></span>
+            <input type="number" name="salary_max" min="0" step="1000" inputmode="numeric" placeholder="120000" value="{{.ApplicationForm.SalaryMax}}" {{if .ApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="salary-max-error"{{end}}>
+            {{with .ApplicationForm.SalaryMaxError}}<small class="form-error" id="salary-max-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field">
+            <span>Applied date <small>Optional</small></span>
+            <input type="date" name="applied_at" value="{{.ApplicationForm.AppliedAt}}" {{if .ApplicationForm.AppliedAtError}}aria-invalid="true" aria-describedby="applied-at-error"{{end}}>
+            {{with .ApplicationForm.AppliedAtError}}<small class="form-error" id="applied-at-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field form-field-wide">
+            <span>Notes <small>Optional</small></span>
+            <textarea name="notes" rows="3" placeholder="Referral, recruiter, next step…">{{.ApplicationForm.Notes}}</textarea>
+          </label>
+        </div>
+
+        <footer class="application-form-footer">
+          <p>Saved directly to your local database.</p>
+          <div>
+            <button class="form-cancel" type="button" data-close-application-dialog>Cancel</button>
+            <button class="form-submit" type="submit">Save application</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  </dialog>
 </body>
 </html>
