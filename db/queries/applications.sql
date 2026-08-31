@@ -1,3 +1,31 @@
+-- name: CreateApplication :one
+INSERT INTO applications (
+    organization_id,
+    role_title,
+    posting_url,
+    salary_min,
+    salary_max,
+    work_location,
+    applied_at,
+    last_checked_at,
+    notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?)
+RETURNING
+    id,
+    organization_id,
+    role_title,
+    status,
+    posting_url,
+    salary_min,
+    salary_max,
+    work_location,
+    applied_at,
+    status_changed_at,
+    last_checked_at,
+    notes,
+    created_at,
+    updated_at;
+
 -- name: ListApplications :many
 SELECT
     applications.id,
