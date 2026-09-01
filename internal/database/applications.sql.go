@@ -86,6 +86,7 @@ SELECT
     applications.id,
     applications.organization_id,
     organizations.name AS organization_name,
+    organizations.careers_url AS organization_careers_url,
     applications.role_title,
     applications.status,
     applications.posting_url,
@@ -104,21 +105,22 @@ ORDER BY applications.created_at DESC, applications.id DESC
 `
 
 type ListApplicationsRow struct {
-	ID               int64
-	OrganizationID   int64
-	OrganizationName string
-	RoleTitle        string
-	Status           string
-	PostingUrl       sql.NullString
-	SalaryMin        sql.NullInt64
-	SalaryMax        sql.NullInt64
-	WorkLocation     string
-	AppliedAt        sql.NullString
-	StatusChangedAt  string
-	LastCheckedAt    sql.NullString
-	Notes            sql.NullString
-	CreatedAt        string
-	UpdatedAt        string
+	ID                     int64
+	OrganizationID         int64
+	OrganizationName       string
+	OrganizationCareersUrl sql.NullString
+	RoleTitle              string
+	Status                 string
+	PostingUrl             sql.NullString
+	SalaryMin              sql.NullInt64
+	SalaryMax              sql.NullInt64
+	WorkLocation           string
+	AppliedAt              sql.NullString
+	StatusChangedAt        string
+	LastCheckedAt          sql.NullString
+	Notes                  sql.NullString
+	CreatedAt              string
+	UpdatedAt              string
 }
 
 func (q *Queries) ListApplications(ctx context.Context) ([]ListApplicationsRow, error) {
@@ -134,6 +136,7 @@ func (q *Queries) ListApplications(ctx context.Context) ([]ListApplicationsRow, 
 			&i.ID,
 			&i.OrganizationID,
 			&i.OrganizationName,
+			&i.OrganizationCareersUrl,
 			&i.RoleTitle,
 			&i.Status,
 			&i.PostingUrl,

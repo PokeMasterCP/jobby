@@ -7,12 +7,19 @@ package database
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getOrCreateOrganization = `-- name: GetOrCreateOrganization :one
-INSERT INTO organizations (name)
-VALUES (?)
-ON CONFLICT (name) DO UPDATE SET name = organizations.name
+INSERT INTO organizations (name, careers_url)
+VALUES (?1, ?2)
+ON CONFLICT (name) DO UPDATE SET
+    careers_url = COALESCE(excluded.careers_url, organizations.careers_url),
+    updated_at = CASE
+        WHEN excluded.careers_url IS NOT NULL
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        ELSE organizations.updated_at
+    END
 RETURNING
     id,
     name,
@@ -21,8 +28,90 @@ RETURNING
     updated_at
 `
 
-func (q *Queries) GetOrCreateOrganization(ctx context.Context, name string) (Organization, error) {
-	row := q.db.QueryRowContext(ctx, getOrCreateOrganization, name)
+type GetOrCreateOrganizationParams struct {
+	Name       string
+	CareersUrl sql.NullString
+}
+
+func (q *Queries) GetOrCreateOrganization(ctx context.Context, arg GetOrCreateOrganizationParams) (Organization, error) {
+	row := q.db.QueryRowContext(ctx, getOrCreateOrganization, arg.Name, arg.CareersUrl)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CareersUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getOrganization = `-- name: GetOrganization :one
+SELECT
+    id,
+    name,
+    careers_url,
+    created_at,
+    updated_at
+FROM organizations
+WHERE id = ?
+`
+
+func (q *Queries) GetOrganization(ctx context.Context, id int64) (Organization, error) {
+	row := q.db.QueryRowContext(ctx, getOrganization, id)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CareersUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const organizationNameInUse = `-- name: OrganizationNameInUse :one
+SELECT COUNT(*)
+FROM organizations
+WHERE name = ?1
+    AND id <> ?2
+`
+
+type OrganizationNameInUseParams struct {
+	Name string
+	ID   int64
+}
+
+func (q *Queries) OrganizationNameInUse(ctx context.Context, arg OrganizationNameInUseParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, organizationNameInUse, arg.Name, arg.ID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const updateOrganization = `-- name: UpdateOrganization :one
+UPDATE organizations
+SET
+    name = ?1,
+    careers_url = ?2,
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = ?3
+RETURNING
+    id,
+    name,
+    careers_url,
+    created_at,
+    updated_at
+`
+
+type UpdateOrganizationParams struct {
+	Name       string
+	CareersUrl sql.NullString
+	ID         int64
+}
+
+func (q *Queries) UpdateOrganization(ctx context.Context, arg UpdateOrganizationParams) (Organization, error) {
+	row := q.db.QueryRowContext(ctx, updateOrganization, arg.Name, arg.CareersUrl, arg.ID)
 	var i Organization
 	err := row.Scan(
 		&i.ID,
