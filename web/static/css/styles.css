@@ -468,7 +468,7 @@ h1 em {
 }
 
 .application-labels,
-.application-list > li {
+.application-row {
   display: grid;
   grid-template-columns: minmax(210px, 1.45fr) minmax(85px, 0.7fr) minmax(75px, 0.55fr) minmax(95px, 0.7fr) minmax(90px, 0.7fr);
   gap: 1rem;
@@ -492,14 +492,28 @@ h1 em {
   list-style: none;
 }
 
-.application-list > li {
+.application-row {
+  position: relative;
+  width: 100%;
   min-height: 84px;
   padding: 1rem 1.5rem;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   transition: background 140ms ease;
 }
 
-.application-list > li:hover {
+.application-row:hover,
+.application-row:focus-visible {
   background: #fffdf6;
+}
+
+.application-row:focus-visible {
+  z-index: 1;
+  outline: 3px solid var(--vermilion);
+  outline-offset: -3px;
 }
 
 .application-list > li + li {
@@ -513,7 +527,7 @@ h1 em {
   min-width: 0;
 }
 
-.application-identity > div {
+.application-identity > span:last-child {
   display: grid;
   min-width: 0;
 }
@@ -525,7 +539,7 @@ h1 em {
   white-space: nowrap;
 }
 
-.application-identity div > span,
+.application-identity > span:last-child > span,
 .last-checked span {
   overflow: hidden;
   color: var(--muted);
@@ -618,6 +632,23 @@ h1 em {
 .last-checked.is-due strong,
 .last-checked.is-due span {
   color: #a53d25;
+}
+
+.application-row-arrow {
+  position: absolute;
+  right: 0.55rem;
+  color: var(--vermilion);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.application-row:hover .application-row-arrow,
+.application-row:focus-visible .application-row-arrow {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .panel-footer {
@@ -717,11 +748,31 @@ h1 em {
 }
 
 .portal-panel li {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.65rem 0;
   border-bottom: 1px solid rgba(27, 27, 24, 0.35);
   font-size: 0.68rem;
+}
+
+.portal-panel li button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  cursor: pointer;
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+.portal-panel li button:hover,
+.portal-panel li button:focus-visible {
+  padding-inline: 0.4rem;
+  background: rgba(251, 248, 239, 0.42);
+  outline: 0;
 }
 
 .portal-panel li strong {
@@ -729,7 +780,7 @@ h1 em {
   font-size: 0.58rem;
 }
 
-.portal-panel button {
+.portal-panel > button {
   width: 100%;
   color: var(--paper-light);
   box-shadow: none;
@@ -854,6 +905,147 @@ h1 em {
 
 .application-dialog-header .section-number {
   color: var(--ink);
+}
+
+.application-detail-header {
+  background: var(--yellow);
+}
+
+.application-summary {
+  padding: 1.75rem;
+}
+
+.application-summary-lead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--ink);
+}
+
+.application-summary-label,
+.application-summary-grid dt {
+  margin: 0 0 0.45rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.application-summary-lead h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+.application-summary-lead .status-tag {
+  margin-top: 0.2rem;
+}
+
+.application-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  border-bottom: 1px solid var(--ink);
+}
+
+.application-summary-grid > div {
+  min-width: 0;
+  padding: 1.15rem 1rem;
+}
+
+.application-summary-grid > div:first-child {
+  padding-left: 0;
+}
+
+.application-summary-grid > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.application-summary-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.application-summary-notes {
+  min-height: 110px;
+  padding: 1.25rem 0;
+}
+
+.application-summary-notes > p:last-child {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+}
+
+.application-posting-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  color: var(--ink);
+  background: var(--cornflower);
+  border: 1px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.application-posting-link:hover,
+.application-posting-link:focus-visible {
+  color: var(--paper-light);
+  background: var(--ink);
+}
+
+.application-summary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--ink);
+}
+
+.application-summary-actions > p {
+  max-width: 250px;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.application-summary-actions > div {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.application-summary-actions form {
+  display: contents;
+}
+
+.checked-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--ink);
+  box-shadow: 4px 4px 0 var(--green);
 }
 
 .dialog-close {
@@ -1108,7 +1300,7 @@ h1 em {
     display: none;
   }
 
-  .application-list > li {
+  .application-row {
     grid-template-columns: minmax(200px, 1fr) auto auto;
   }
 
@@ -1222,8 +1414,38 @@ h1 em {
   }
 
   .application-dialog-header,
-  .application-form {
+  .application-form,
+  .application-summary {
     padding: 1.25rem;
+  }
+
+  .application-summary-lead,
+  .application-summary-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .application-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .application-summary-grid > div,
+  .application-summary-grid > div:first-child {
+    padding: 0.9rem 0;
+  }
+
+  .application-summary-grid > div:nth-child(even) {
+    padding-left: 0.9rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .application-summary-grid > div:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .application-summary-actions > div,
+  .application-summary-actions button {
+    width: 100%;
   }
 
   .application-form-grid {
@@ -1244,7 +1466,7 @@ h1 em {
     width: 100%;
   }
 
-  .application-list > li {
+  .application-row {
     grid-template-columns: 1fr auto;
     gap: 0.7rem 1rem;
     padding: 1rem;
