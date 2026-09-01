@@ -159,3 +159,130 @@ func (q *Queries) ListApplications(ctx context.Context) ([]ListApplicationsRow, 
 	}
 	return items, nil
 }
+
+const markApplicationChecked = `-- name: MarkApplicationChecked :one
+UPDATE applications
+SET
+    last_checked_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = ?
+RETURNING
+    id,
+    organization_id,
+    role_title,
+    status,
+    posting_url,
+    salary_min,
+    salary_max,
+    work_location,
+    applied_at,
+    status_changed_at,
+    last_checked_at,
+    notes,
+    created_at,
+    updated_at
+`
+
+func (q *Queries) MarkApplicationChecked(ctx context.Context, id int64) (Application, error) {
+	row := q.db.QueryRowContext(ctx, markApplicationChecked, id)
+	var i Application
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.RoleTitle,
+		&i.Status,
+		&i.PostingUrl,
+		&i.SalaryMin,
+		&i.SalaryMax,
+		&i.WorkLocation,
+		&i.AppliedAt,
+		&i.StatusChangedAt,
+		&i.LastCheckedAt,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateApplication = `-- name: UpdateApplication :one
+UPDATE applications
+SET
+    organization_id = ?1,
+    role_title = ?2,
+    status_changed_at = CASE
+        WHEN status <> ?3
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        ELSE status_changed_at
+    END,
+    status = ?3,
+    posting_url = ?4,
+    salary_min = ?5,
+    salary_max = ?6,
+    work_location = ?7,
+    applied_at = ?8,
+    notes = ?9,
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = ?10
+RETURNING
+    id,
+    organization_id,
+    role_title,
+    status,
+    posting_url,
+    salary_min,
+    salary_max,
+    work_location,
+    applied_at,
+    status_changed_at,
+    last_checked_at,
+    notes,
+    created_at,
+    updated_at
+`
+
+type UpdateApplicationParams struct {
+	OrganizationID int64
+	RoleTitle      string
+	Status         string
+	PostingUrl     sql.NullString
+	SalaryMin      sql.NullInt64
+	SalaryMax      sql.NullInt64
+	WorkLocation   string
+	AppliedAt      sql.NullString
+	Notes          sql.NullString
+	ID             int64
+}
+
+func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (Application, error) {
+	row := q.db.QueryRowContext(ctx, updateApplication,
+		arg.OrganizationID,
+		arg.RoleTitle,
+		arg.Status,
+		arg.PostingUrl,
+		arg.SalaryMin,
+		arg.SalaryMax,
+		arg.WorkLocation,
+		arg.AppliedAt,
+		arg.Notes,
+		arg.ID,
+	)
+	var i Application
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.RoleTitle,
+		&i.Status,
+		&i.PostingUrl,
+		&i.SalaryMin,
+		&i.SalaryMax,
+		&i.WorkLocation,
+		&i.AppliedAt,
+		&i.StatusChangedAt,
+		&i.LastCheckedAt,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

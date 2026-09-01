@@ -1,30 +1,160 @@
 (() => {
-  const dialog = document.querySelector("#application-dialog");
-  const openButton = document.querySelector("[data-open-application-dialog]");
+  const createDialog = document.querySelector("#application-dialog");
+  const createOpenButton = document.querySelector("[data-open-application-dialog]");
 
-  if (!dialog || !openButton) {
+  if (createDialog && createOpenButton) {
+    createOpenButton.addEventListener("click", () => {
+      createDialog.showModal();
+    });
+
+    if (createDialog.hasAttribute("data-open-on-load")) {
+      createDialog.showModal();
+      createDialog.querySelector('[aria-invalid="true"]')?.focus();
+    }
+
+    createDialog.querySelectorAll("[data-close-application-dialog]").forEach((button) => {
+      button.addEventListener("click", () => {
+        createDialog.close();
+      });
+    });
+
+    createDialog.addEventListener("click", (event) => {
+      if (event.target === createDialog) {
+        createDialog.close();
+      }
+    });
+  }
+
+  const detailDialog = document.querySelector("#application-detail-dialog");
+  if (!detailDialog) {
     return;
   }
 
-  openButton.addEventListener("click", () => {
-    dialog.showModal();
-  });
+  const summary = detailDialog.querySelector("[data-application-summary]");
+  const editForm = detailDialog.querySelector("[data-application-edit-form]");
+  const checkedForm = detailDialog.querySelector("[data-mark-application-checked]");
+  const kicker = detailDialog.querySelector("[data-detail-kicker]");
+  const organization = detailDialog.querySelector("[data-detail-organization]");
+  const status = detailDialog.querySelector("[data-detail-status]");
+  const postingLink = detailDialog.querySelector("[data-detail-posting-url]");
 
-  if (dialog.hasAttribute("data-open-on-load")) {
-    dialog.showModal();
-    dialog.querySelector('[aria-invalid="true"]')?.focus();
-  }
+  const setText = (selector, value) => {
+    const element = detailDialog.querySelector(selector);
+    if (element) {
+      element.textContent = value;
+    }
+  };
 
-  dialog.querySelectorAll("[data-close-application-dialog]").forEach((button) => {
-    button.addEventListener("click", () => {
-      dialog.close();
+  const setField = (name, value) => {
+    const field = editForm?.elements.namedItem(name);
+    if (field) {
+      field.value = value;
+    }
+  };
+
+  const setActions = (applicationID) => {
+    if (editForm) {
+      editForm.action = `/applications/${applicationID}`;
+    }
+    if (checkedForm) {
+      checkedForm.action = `/applications/${applicationID}/checked`;
+    }
+  };
+
+  const populateSummary = (application) => {
+    organization.textContent = application.organizationName;
+    setText("[data-detail-role]", application.roleTitle);
+    setText("[data-detail-salary]", application.salary);
+    setText("[data-detail-location]", application.location);
+    setText("[data-detail-applied-at]", application.appliedAtDisplay);
+    setText("[data-detail-last-checked]", application.lastChecked);
+    setText("[data-detail-notes]", application.notes || "No notes yet.");
+
+    status.textContent = application.statusLabel;
+    status.className = `status-tag ${application.statusClass}`;
+
+    if (application.postingUrl) {
+      postingLink.href = application.postingUrl;
+      postingLink.hidden = false;
+    } else {
+      postingLink.removeAttribute("href");
+      postingLink.hidden = true;
+    }
+
+    setActions(application.applicationId);
+  };
+
+  const populateEditForm = (application) => {
+    setField("organization_name", application.organizationName);
+    setField("role_title", application.roleTitle);
+    setField("status", application.status);
+    setField("work_location", application.workLocation);
+    setField("posting_url", application.postingUrl);
+    setField("salary_min", application.salaryMin);
+    setField("salary_max", application.salaryMax);
+    setField("applied_at", application.appliedAt);
+    setField("notes", application.notes);
+  };
+
+  const showSummary = () => {
+    kicker.textContent = "05 / Application brief";
+    summary.hidden = false;
+    editForm.hidden = true;
+  };
+
+  const showEditForm = () => {
+    kicker.textContent = "05 / Edit record";
+    summary.hidden = true;
+    editForm.hidden = false;
+    editForm.querySelector('[aria-invalid="true"]')?.focus() ||
+      editForm.elements.namedItem("organization_name")?.focus();
+  };
+
+  const openApplication = (row) => {
+    populateSummary(row.dataset);
+    populateEditForm(row.dataset);
+    showSummary();
+    detailDialog.showModal();
+  };
+
+  const applicationRows = Array.from(document.querySelectorAll("[data-open-application-summary]"));
+  applicationRows.forEach((row) => {
+    row.addEventListener("click", () => {
+      openApplication(row);
     });
   });
 
-  dialog.addEventListener("click", (event) => {
-    if (event.target === dialog) {
-      dialog.close();
+  document.querySelectorAll("[data-open-application-reference]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const applicationID = button.dataset.openApplicationReference;
+      const row = applicationRows.find((candidate) => candidate.dataset.applicationId === applicationID);
+      if (row) {
+        openApplication(row);
+      }
+    });
+  });
+
+  detailDialog.querySelector("[data-edit-application]")?.addEventListener("click", showEditForm);
+  detailDialog.querySelector("[data-cancel-application-edit]")?.addEventListener("click", showSummary);
+  detailDialog.querySelector("[data-close-application-detail]")?.addEventListener("click", () => {
+    detailDialog.close();
+  });
+
+  detailDialog.addEventListener("click", (event) => {
+    if (event.target === detailDialog) {
+      detailDialog.close();
     }
   });
 
+  if (detailDialog.hasAttribute("data-open-on-load")) {
+    const applicationID = detailDialog.dataset.openApplicationId;
+    const row = applicationRows.find((candidate) => candidate.dataset.applicationId === applicationID);
+    if (row) {
+      populateSummary(row.dataset);
+    } else {
+      setActions(applicationID);
+    }
+    showEditForm();
+    detailDialog.showModal();
+  }
 })();

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/pokemastercp/jobby/internal/database"
 	"github.com/pressly/goose/v3"
@@ -22,6 +23,8 @@ import (
 
 //go:embed db/migrations/*.sql web/templates/*.html web/static
 var appFS embed.FS
+
+var applicationLocation = mustLoadLocation("America/Chicago")
 
 type overviewData struct {
 	Applications              []applicationView
@@ -41,24 +44,36 @@ type overviewData struct {
 	RejectedAfterContactCount int
 	RejectedNoContactCount    int
 	ApplicationForm           applicationFormView
+	EditApplicationForm       applicationFormView
+	SelectedApplicationID     int64
 }
 
 type applicationView struct {
+	ID                  int64
 	OrganizationName    string
 	OrganizationInitial string
 	OrganizationMark    string
 	RoleTitle           string
+	Status              string
 	Salary              string
+	SalaryMin           string
+	SalaryMax           string
 	Location            string
 	LocationIcon        string
+	WorkLocation        string
 	StatusLabel         string
 	StatusClass         string
+	PostingURL          string
+	AppliedAt           string
+	AppliedAtDisplay    string
 	LastChecked         string
 	LastCheckedDetail   string
 	LastCheckedIsDue    bool
+	Notes               string
 }
 
 type portalApplicationView struct {
+	ID               int64
 	OrganizationName string
 	LastChecked      string
 	daysSinceCheck   int
@@ -71,6 +86,8 @@ type applicationFormView struct {
 	OrganizationError string
 	RoleTitle         string
 	RoleTitleError    string
+	Status            string
+	StatusError       string
 	WorkLocation      string
 	WorkLocationError string
 	PostingURL        string
@@ -87,12 +104,19 @@ type applicationFormView struct {
 type applicationFormInput struct {
 	OrganizationName string
 	RoleTitle        string
+	Status           string
 	WorkLocation     string
 	PostingURL       sql.NullString
 	SalaryMin        sql.NullInt64
 	SalaryMax        sql.NullInt64
 	AppliedAt        sql.NullString
 	Notes            sql.NullString
+}
+
+type overviewPageState struct {
+	ApplicationForm       applicationFormView
+	EditApplicationForm   applicationFormView
+	SelectedApplicationID int64
 }
 
 func main() {
@@ -130,7 +154,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		renderOverview(w, r, queries, templates, applicationFormView{}, http.StatusOK)
+		renderOverview(w, r, queries, templates, overviewPageState{}, http.StatusOK)
 	})
 	mux.HandleFunc("POST /applications", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
@@ -139,9 +163,9 @@ func main() {
 		}
 
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-		form, input := parseApplicationForm(r)
+		form, input := parseApplicationForm(r, false)
 		if form.HasErrors {
-			renderOverview(w, r, queries, templates, form, http.StatusUnprocessableEntity)
+			renderOverview(w, r, queries, templates, overviewPageState{ApplicationForm: form}, http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -185,6 +209,97 @@ func main() {
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	})
+	mux.HandleFunc("POST /applications/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !isSameOrigin(r) {
+			http.Error(w, "Invalid request origin", http.StatusForbidden)
+			return
+		}
+
+		applicationID, err := parseApplicationID(r)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		form, input := parseApplicationForm(r, true)
+		if form.HasErrors {
+			renderOverview(w, r, queries, templates, overviewPageState{
+				EditApplicationForm:   form,
+				SelectedApplicationID: applicationID,
+			}, http.StatusUnprocessableEntity)
+			return
+		}
+
+		tx, err := db.BeginTx(r.Context(), nil)
+		if err != nil {
+			log.Printf("begin update application transaction: %v", err)
+			http.Error(w, "Unable to update application", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		txQueries := queries.WithTx(tx)
+		organization, err := txQueries.GetOrCreateOrganization(r.Context(), input.OrganizationName)
+		if err != nil {
+			log.Printf("get or create organization for application update: %v", err)
+			http.Error(w, "Unable to update application", http.StatusInternalServerError)
+			return
+		}
+
+		_, err = txQueries.UpdateApplication(r.Context(), database.UpdateApplicationParams{
+			OrganizationID: organization.ID,
+			RoleTitle:      input.RoleTitle,
+			Status:         input.Status,
+			PostingUrl:     input.PostingURL,
+			SalaryMin:      input.SalaryMin,
+			SalaryMax:      input.SalaryMax,
+			WorkLocation:   input.WorkLocation,
+			AppliedAt:      input.AppliedAt,
+			Notes:          input.Notes,
+			ID:             applicationID,
+		})
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			log.Printf("update application: %v", err)
+			http.Error(w, "Unable to update application", http.StatusInternalServerError)
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("commit update application: %v", err)
+			http.Error(w, "Unable to update application", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+	})
+	mux.HandleFunc("POST /applications/{id}/checked", func(w http.ResponseWriter, r *http.Request) {
+		if !isSameOrigin(r) {
+			http.Error(w, "Invalid request origin", http.StatusForbidden)
+			return
+		}
+
+		applicationID, err := parseApplicationID(r)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		if _, err := queries.MarkApplicationChecked(r.Context(), applicationID); err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		} else if err != nil {
+			log.Printf("mark application checked: %v", err)
+			http.Error(w, "Unable to mark application checked", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+	})
 
 	addr := ":8080"
 	log.Printf("listening on http://localhost%s", addr)
@@ -193,14 +308,16 @@ func main() {
 	}
 }
 
-func renderOverview(w http.ResponseWriter, r *http.Request, queries *database.Queries, templates *template.Template, form applicationFormView, status int) {
+func renderOverview(w http.ResponseWriter, r *http.Request, queries *database.Queries, templates *template.Template, state overviewPageState, status int) {
 	data, err := loadOverviewData(r.Context(), queries)
 	if err != nil {
 		log.Printf("list applications: %v", err)
 		http.Error(w, "Unable to load applications", http.StatusInternalServerError)
 		return
 	}
-	data.ApplicationForm = form
+	data.ApplicationForm = state.ApplicationForm
+	data.EditApplicationForm = state.EditApplicationForm
+	data.SelectedApplicationID = state.SelectedApplicationID
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
@@ -219,7 +336,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		TotalApplications: len(applications),
 	}
 	organizations := make(map[int64]string)
-	now := time.Now()
+	now := time.Now().In(applicationLocation)
 	for _, application := range applications {
 		organizations[application.OrganizationID] = application.OrganizationName
 
@@ -273,7 +390,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	return data, nil
 }
 
-func parseApplicationForm(r *http.Request) (applicationFormView, applicationFormInput) {
+func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormView, applicationFormInput) {
 	form := applicationFormView{}
 	if err := r.ParseForm(); err != nil {
 		form.HasErrors = true
@@ -283,6 +400,9 @@ func parseApplicationForm(r *http.Request) (applicationFormView, applicationForm
 
 	form.OrganizationName = normalizeSingleLine(r.FormValue("organization_name"))
 	form.RoleTitle = normalizeSingleLine(r.FormValue("role_title"))
+	if includeStatus {
+		form.Status = strings.TrimSpace(r.FormValue("status"))
+	}
 	form.WorkLocation = strings.TrimSpace(r.FormValue("work_location"))
 	form.PostingURL = strings.TrimSpace(r.FormValue("posting_url"))
 	form.SalaryMin = strings.TrimSpace(r.FormValue("salary_min"))
@@ -295,6 +415,9 @@ func parseApplicationForm(r *http.Request) (applicationFormView, applicationForm
 	}
 	if form.RoleTitle == "" {
 		form.RoleTitleError = "Enter a role title."
+	}
+	if includeStatus && !isApplicationStatus(form.Status) {
+		form.StatusError = "Choose a valid status."
 	}
 	if form.WorkLocation != "remote" && form.WorkLocation != "local" {
 		form.WorkLocationError = "Choose remote or local."
@@ -331,6 +454,7 @@ func parseApplicationForm(r *http.Request) (applicationFormView, applicationForm
 
 	form.HasErrors = form.OrganizationError != "" ||
 		form.RoleTitleError != "" ||
+		form.StatusError != "" ||
 		form.WorkLocationError != "" ||
 		form.PostingURLError != "" ||
 		form.SalaryMinError != "" ||
@@ -344,6 +468,7 @@ func parseApplicationForm(r *http.Request) (applicationFormView, applicationForm
 	return form, applicationFormInput{
 		OrganizationName: form.OrganizationName,
 		RoleTitle:        form.RoleTitle,
+		Status:           form.Status,
 		WorkLocation:     form.WorkLocation,
 		PostingURL:       nullableString(form.PostingURL),
 		SalaryMin:        salaryMin,
@@ -373,6 +498,22 @@ func nullableString(value string) sql.NullString {
 	return sql.NullString{String: value, Valid: value != ""}
 }
 
+func mustLoadLocation(name string) *time.Location {
+	location, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return location
+}
+
+func parseApplicationID(r *http.Request) (int64, error) {
+	applicationID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || applicationID < 1 {
+		return 0, fmt.Errorf("invalid application id")
+	}
+	return applicationID, nil
+}
+
 func isSameOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	return origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host
@@ -382,29 +523,48 @@ func isOpenStatus(status string) bool {
 	return status == "applied" || status == "in_contact"
 }
 
+func isApplicationStatus(status string) bool {
+	switch status {
+	case "applied", "in_contact", "accepted", "rejected_after_contact", "rejected_no_contact":
+		return true
+	default:
+		return false
+	}
+}
+
 func newApplicationView(application database.ListApplicationsRow, now time.Time) applicationView {
 	lastChecked, lastCheckedDetail, lastCheckedIsDue := formatLastChecked(application.LastCheckedAt, now)
 	statusLabel, statusClass := formatStatus(application.Status)
 
 	return applicationView{
+		ID:                  application.ID,
 		OrganizationName:    application.OrganizationName,
 		OrganizationInitial: organizationInitial(application.OrganizationName),
 		OrganizationMark:    organizationMark(application.OrganizationID),
 		RoleTitle:           application.RoleTitle,
+		Status:              application.Status,
 		Salary:              formatSalary(application.SalaryMin, application.SalaryMax),
+		SalaryMin:           formatOptionalInt(application.SalaryMin),
+		SalaryMax:           formatOptionalInt(application.SalaryMax),
 		Location:            strings.ToUpper(application.WorkLocation[:1]) + application.WorkLocation[1:],
 		LocationIcon:        map[string]string{"remote": "⌂", "local": "⌖"}[application.WorkLocation],
+		WorkLocation:        application.WorkLocation,
 		StatusLabel:         statusLabel,
 		StatusClass:         statusClass,
+		PostingURL:          nullStringValue(application.PostingUrl),
+		AppliedAt:           nullStringValue(application.AppliedAt),
+		AppliedAtDisplay:    formatAppliedAt(application.AppliedAt),
 		LastChecked:         lastChecked,
 		LastCheckedDetail:   lastCheckedDetail,
 		LastCheckedIsDue:    lastCheckedIsDue,
+		Notes:               nullStringValue(application.Notes),
 	}
 }
 
 func newPortalApplicationView(application database.ListApplicationsRow, now time.Time) portalApplicationView {
 	if !application.LastCheckedAt.Valid {
 		return portalApplicationView{
+			ID:               application.ID,
 			OrganizationName: application.OrganizationName,
 			LastChecked:      "Never",
 			daysSinceCheck:   int(^uint(0) >> 1),
@@ -414,6 +574,7 @@ func newPortalApplicationView(application database.ListApplicationsRow, now time
 	checkedAt, _ := time.Parse(time.RFC3339Nano, application.LastCheckedAt.String)
 	daysSinceCheck := int(now.Sub(checkedAt).Hours() / 24)
 	return portalApplicationView{
+		ID:               application.ID,
 		OrganizationName: application.OrganizationName,
 		LastChecked:      fmt.Sprintf("%dd", daysSinceCheck),
 		daysSinceCheck:   daysSinceCheck,
@@ -461,6 +622,31 @@ func compactSalary(amount int64) string {
 	return fmt.Sprintf("$%d", amount)
 }
 
+func formatOptionalInt(value sql.NullInt64) string {
+	if !value.Valid {
+		return ""
+	}
+	return strconv.FormatInt(value.Int64, 10)
+}
+
+func nullStringValue(value sql.NullString) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String
+}
+
+func formatAppliedAt(appliedAt sql.NullString) string {
+	if !appliedAt.Valid {
+		return "Not recorded"
+	}
+	appliedDate, err := time.Parse("2006-01-02", appliedAt.String)
+	if err != nil {
+		return appliedAt.String
+	}
+	return appliedDate.Format("Jan 2, 2006")
+}
+
 func formatStatus(status string) (string, string) {
 	switch status {
 	case "in_contact":
@@ -485,6 +671,7 @@ func formatLastChecked(lastChecked sql.NullString, now time.Time) (string, strin
 	if err != nil {
 		return lastChecked.String, "", false
 	}
+	checkedAt = checkedAt.In(now.Location())
 
 	daysAgo := int(now.Sub(checkedAt).Hours() / 24)
 	if daysAgo < 1 {
