@@ -1343,6 +1343,17 @@ h1 em {
   box-shadow: 4px 4px 0 var(--green);
 }
 
+.delete-button {
+  color: #8a2816;
+  border-color: #8a2816;
+}
+
+.delete-button:hover,
+.delete-button:focus-visible {
+  color: var(--paper-light);
+  background: #8a2816;
+}
+
 .dialog-close {
   display: grid;
   width: 2.25rem;

@@ -397,6 +397,9 @@
         <footer class="application-summary-actions">
           <p>A quick check keeps the follow-up queue honest.</p>
           <div>
+            <form method="post" data-delete-application>
+              <button class="form-cancel delete-button" type="submit">Delete</button>
+            </form>
             <button class="form-cancel" type="button" data-edit-application>Edit application</button>
             <form method="post" data-mark-application-checked>
               <button class="form-submit checked-button" type="submit"><span aria-hidden="true">✓</span> Just checked</button>
