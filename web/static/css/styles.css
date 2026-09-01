@@ -1194,6 +1194,45 @@ h1 em {
   margin-top: 0.2rem;
 }
 
+.application-status-control {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 0.2rem;
+}
+
+.application-status-control::after {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  color: currentColor;
+  content: "▾";
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  pointer-events: none;
+  transform: translateY(-52%);
+}
+
+.application-status-control .status-quick-select {
+  max-width: 15rem;
+  min-height: 0;
+  padding: 0.35rem 1.4rem 0.35rem 0.55rem;
+  margin: 0;
+  border-radius: 0;
+  appearance: none;
+  cursor: pointer;
+}
+
+.status-quick-select:hover {
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: translate(-1px, -1px);
+}
+
+.status-quick-select:focus-visible {
+  outline: 3px solid var(--vermilion);
+  outline-offset: 2px;
+}
+
 .application-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

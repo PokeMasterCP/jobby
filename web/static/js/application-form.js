@@ -51,11 +51,12 @@
 
   const summary = detailDialog.querySelector("[data-application-summary]");
   const editForm = detailDialog.querySelector("[data-application-edit-form]");
+  const statusForm = detailDialog.querySelector("[data-change-application-status]");
   const checkedForm = detailDialog.querySelector("[data-mark-application-checked]");
   const deleteForm = detailDialog.querySelector("[data-delete-application]");
   const kicker = detailDialog.querySelector("[data-detail-kicker]");
   const organization = detailDialog.querySelector("[data-detail-organization]");
-  const status = detailDialog.querySelector("[data-detail-status]");
+  const statusSelect = detailDialog.querySelector("[data-detail-status]");
   const careersLink = detailDialog.querySelector("[data-detail-careers-url]");
   const careersMissing = detailDialog.querySelector("[data-detail-careers-missing]");
   const postingLink = detailDialog.querySelector("[data-detail-posting-url]");
@@ -78,6 +79,9 @@
   const setActions = (applicationID) => {
     if (editForm) {
       editForm.action = `/applications/${applicationID}`;
+    }
+    if (statusForm) {
+      statusForm.action = `/applications/${applicationID}/status`;
     }
     if (checkedForm) {
       checkedForm.action = `/applications/${applicationID}/checked`;
@@ -109,8 +113,9 @@
     setText("[data-detail-last-checked]", application.lastChecked);
     setText("[data-detail-notes]", application.notes || "No notes yet.");
 
-    status.textContent = application.statusLabel;
-    status.className = `status-tag ${application.statusClass}`;
+    statusSelect.value = application.status;
+    statusSelect.className = `status-tag status-quick-select ${application.statusClass}`;
+    statusSelect.setAttribute("aria-label", `Change status, currently ${application.statusLabel}`);
 
     setResourceLink(careersLink, careersMissing, application.careersUrl);
     careersMissing.href = `/organizations/${application.organizationId}/edit`;
@@ -171,6 +176,9 @@
 
   detailDialog.querySelector("[data-edit-application]")?.addEventListener("click", showEditForm);
   detailDialog.querySelector("[data-cancel-application-edit]")?.addEventListener("click", showSummary);
+  statusSelect?.addEventListener("change", () => {
+    statusForm?.requestSubmit();
+  });
   deleteForm?.addEventListener("submit", (event) => {
     if (!window.confirm(`Delete the ${organization.textContent} application? This cannot be undone.`)) {
       event.preventDefault();
