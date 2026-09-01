@@ -81,6 +81,19 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 	return i, err
 }
 
+const deleteApplication = `-- name: DeleteApplication :one
+DELETE FROM applications
+WHERE id = ?
+RETURNING id
+`
+
+func (q *Queries) DeleteApplication(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteApplication, id)
+	var id_2 int64
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const listApplications = `-- name: ListApplications :many
 SELECT
     applications.id,

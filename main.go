@@ -403,6 +403,29 @@ func main() {
 
 		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
 	})
+	mux.HandleFunc("POST /applications/{id}/delete", func(w http.ResponseWriter, r *http.Request) {
+		if !isSameOrigin(r) {
+			http.Error(w, "Invalid request origin", http.StatusForbidden)
+			return
+		}
+
+		applicationID, err := parseApplicationID(r)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		if _, err := queries.DeleteApplication(r.Context(), applicationID); err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		} else if err != nil {
+			log.Printf("delete application: %v", err)
+			http.Error(w, "Unable to delete application", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+	})
 
 	addr := ":8080"
 	log.Printf("listening on http://localhost%s", addr)

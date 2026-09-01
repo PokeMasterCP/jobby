@@ -83,6 +83,11 @@ RETURNING
     created_at,
     updated_at;
 
+-- name: DeleteApplication :one
+DELETE FROM applications
+WHERE id = ?
+RETURNING id;
+
 -- name: ListApplications :many
 SELECT
     applications.id,

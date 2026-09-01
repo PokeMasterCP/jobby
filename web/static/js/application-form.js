@@ -52,6 +52,7 @@
   const summary = detailDialog.querySelector("[data-application-summary]");
   const editForm = detailDialog.querySelector("[data-application-edit-form]");
   const checkedForm = detailDialog.querySelector("[data-mark-application-checked]");
+  const deleteForm = detailDialog.querySelector("[data-delete-application]");
   const kicker = detailDialog.querySelector("[data-detail-kicker]");
   const organization = detailDialog.querySelector("[data-detail-organization]");
   const status = detailDialog.querySelector("[data-detail-status]");
@@ -80,6 +81,9 @@
     }
     if (checkedForm) {
       checkedForm.action = `/applications/${applicationID}/checked`;
+    }
+    if (deleteForm) {
+      deleteForm.action = `/applications/${applicationID}/delete`;
     }
   };
 
@@ -167,6 +171,11 @@
 
   detailDialog.querySelector("[data-edit-application]")?.addEventListener("click", showEditForm);
   detailDialog.querySelector("[data-cancel-application-edit]")?.addEventListener("click", showSummary);
+  deleteForm?.addEventListener("submit", (event) => {
+    if (!window.confirm(`Delete the ${organization.textContent} application? This cannot be undone.`)) {
+      event.preventDefault();
+    }
+  });
   detailDialog.querySelector("[data-close-application-detail]")?.addEventListener("click", () => {
     detailDialog.close();
   });
