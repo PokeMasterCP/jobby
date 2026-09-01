@@ -302,3 +302,29 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 	)
 	return i, err
 }
+
+const updateApplicationStatus = `-- name: UpdateApplicationStatus :execrows
+UPDATE applications
+SET
+    status_changed_at = CASE
+        WHEN status <> ?1
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        ELSE status_changed_at
+    END,
+    status = ?1,
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = ?2
+`
+
+type UpdateApplicationStatusParams struct {
+	Status string
+	ID     int64
+}
+
+func (q *Queries) UpdateApplicationStatus(ctx context.Context, arg UpdateApplicationStatusParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateApplicationStatus, arg.Status, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

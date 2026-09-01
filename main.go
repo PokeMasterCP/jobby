@@ -380,6 +380,41 @@ func main() {
 
 		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
 	})
+	mux.HandleFunc("POST /applications/{id}/status", func(w http.ResponseWriter, r *http.Request) {
+		if !isSameOrigin(r) {
+			http.Error(w, "Invalid request origin", http.StatusForbidden)
+			return
+		}
+
+		applicationID, err := parseApplicationID(r)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
+		status := strings.TrimSpace(r.FormValue("status"))
+		if !isApplicationStatus(status) {
+			http.Error(w, "Choose a valid status.", http.StatusUnprocessableEntity)
+			return
+		}
+
+		rowsAffected, err := queries.UpdateApplicationStatus(r.Context(), database.UpdateApplicationStatusParams{
+			Status: status,
+			ID:     applicationID,
+		})
+		if err != nil {
+			log.Printf("update application status: %v", err)
+			http.Error(w, "Unable to update application status", http.StatusInternalServerError)
+			return
+		}
+		if rowsAffected == 0 {
+			http.NotFound(w, r)
+			return
+		}
+
+		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+	})
 	mux.HandleFunc("POST /applications/{id}/checked", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
 			http.Error(w, "Invalid request origin", http.StatusForbidden)

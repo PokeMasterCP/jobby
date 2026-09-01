@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
   <title>Jobby — Search overview</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=organization-editor">
-  <script src="/static/js/application-form.js?v=organization-editor" defer></script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=quick-status">
+  <script src="/static/js/application-form.js?v=quick-status" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -351,7 +351,15 @@
             <p class="application-summary-label">Role</p>
             <h3 data-detail-role></h3>
           </div>
-          <span class="status-tag" data-detail-status></span>
+          <form class="application-status-control" method="post" data-change-application-status>
+            <select class="status-tag status-quick-select status-applied" name="status" aria-label="Change status, currently Applied" data-detail-status>
+              <option value="applied">Applied</option>
+              <option value="in_contact">In contact</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected_after_contact">Rejected after contact</option>
+              <option value="rejected_no_contact">Rejected, no contact</option>
+            </select>
+          </form>
         </div>
 
         <dl class="application-summary-grid">

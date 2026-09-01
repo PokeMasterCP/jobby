@@ -61,6 +61,18 @@ RETURNING
     created_at,
     updated_at;
 
+-- name: UpdateApplicationStatus :execrows
+UPDATE applications
+SET
+    status_changed_at = CASE
+        WHEN status <> sqlc.arg(status)
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        ELSE status_changed_at
+    END,
+    status = sqlc.arg(status),
+    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+WHERE id = sqlc.arg(id);
+
 -- name: MarkApplicationChecked :one
 UPDATE applications
 SET
