@@ -765,7 +765,7 @@ func newPortalApplicationView(application database.ListApplicationsRow, now time
 	}
 
 	checkedAt, _ := time.Parse(time.RFC3339Nano, application.LastCheckedAt.String)
-	daysSinceCheck := int(now.Sub(checkedAt).Hours() / 24)
+	daysSinceCheck := calendarDaysBetween(checkedAt.In(now.Location()), now)
 	return portalApplicationView{
 		ID:               application.ID,
 		OrganizationName: application.OrganizationName,
@@ -866,7 +866,7 @@ func formatLastChecked(lastChecked sql.NullString, now time.Time) (string, strin
 	}
 	checkedAt = checkedAt.In(now.Location())
 
-	daysAgo := int(now.Sub(checkedAt).Hours() / 24)
+	daysAgo := calendarDaysBetween(checkedAt, now)
 	if daysAgo < 1 {
 		return "Today", checkedAt.Format("3:04 PM"), false
 	}
@@ -874,4 +874,12 @@ func formatLastChecked(lastChecked sql.NullString, now time.Time) (string, strin
 		return "Yesterday", checkedAt.Format("3:04 PM"), false
 	}
 	return fmt.Sprintf("%d days ago", daysAgo), "Check portal ↗", daysAgo >= 7
+}
+
+func calendarDaysBetween(earlier, later time.Time) int {
+	earlierYear, earlierMonth, earlierDay := earlier.Date()
+	laterYear, laterMonth, laterDay := later.Date()
+	earlierDate := time.Date(earlierYear, earlierMonth, earlierDay, 0, 0, 0, 0, time.UTC)
+	laterDate := time.Date(laterYear, laterMonth, laterDay, 0, 0, 0, 0, time.UTC)
+	return int(laterDate.Sub(earlierDate) / (24 * time.Hour))
 }
