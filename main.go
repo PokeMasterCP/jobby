@@ -50,6 +50,7 @@ type overviewData struct {
 
 type applicationView struct {
 	ID                  int64
+	OrganizationID      int64
 	OrganizationName    string
 	OrganizationInitial string
 	OrganizationMark    string
@@ -63,6 +64,7 @@ type applicationView struct {
 	WorkLocation        string
 	StatusLabel         string
 	StatusClass         string
+	CareersURL          string
 	PostingURL          string
 	AppliedAt           string
 	AppliedAtDisplay    string
@@ -90,6 +92,8 @@ type applicationFormView struct {
 	StatusError       string
 	WorkLocation      string
 	WorkLocationError string
+	CareersURL        string
+	CareersURLError   string
 	PostingURL        string
 	PostingURLError   string
 	SalaryMin         string
@@ -106,6 +110,7 @@ type applicationFormInput struct {
 	RoleTitle        string
 	Status           string
 	WorkLocation     string
+	CareersURL       sql.NullString
 	PostingURL       sql.NullString
 	SalaryMin        sql.NullInt64
 	SalaryMax        sql.NullInt64
@@ -117,6 +122,22 @@ type overviewPageState struct {
 	ApplicationForm       applicationFormView
 	EditApplicationForm   applicationFormView
 	SelectedApplicationID int64
+}
+
+type organizationFormView struct {
+	ID              int64
+	Name            string
+	NameError       string
+	CareersURL      string
+	CareersURLError string
+	GeneralError    string
+	HasErrors       bool
+	Saved           bool
+}
+
+type organizationFormInput struct {
+	Name       string
+	CareersURL sql.NullString
 }
 
 func main() {
@@ -156,6 +177,82 @@ func main() {
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		renderOverview(w, r, queries, templates, overviewPageState{}, http.StatusOK)
 	})
+	mux.HandleFunc("GET /organizations/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
+		organizationID, err := parseOrganizationID(r)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		organization, err := queries.GetOrganization(r.Context(), organizationID)
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			log.Printf("get organization: %v", err)
+			http.Error(w, "Unable to load organization", http.StatusInternalServerError)
+			return
+		}
+
+		form := newOrganizationFormView(organization)
+		form.Saved = r.URL.Query().Get("saved") == "1"
+		renderOrganizationForm(w, templates, form, http.StatusOK)
+	})
+	mux.HandleFunc("POST /organizations/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !isSameOrigin(r) {
+			http.Error(w, "Invalid request origin", http.StatusForbidden)
+			return
+		}
+
+		organizationID, err := parseOrganizationID(r)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		form, input := parseOrganizationForm(r)
+		form.ID = organizationID
+		if form.HasErrors {
+			renderOrganizationForm(w, templates, form, http.StatusUnprocessableEntity)
+			return
+		}
+
+		nameInUse, err := queries.OrganizationNameInUse(r.Context(), database.OrganizationNameInUseParams{
+			Name: input.Name,
+			ID:   organizationID,
+		})
+		if err != nil {
+			log.Printf("check organization name: %v", err)
+			http.Error(w, "Unable to update organization", http.StatusInternalServerError)
+			return
+		}
+		if nameInUse > 0 {
+			form.NameError = "An organization with this name already exists."
+			form.GeneralError = "Review the highlighted field and try again."
+			form.HasErrors = true
+			renderOrganizationForm(w, templates, form, http.StatusUnprocessableEntity)
+			return
+		}
+
+		_, err = queries.UpdateOrganization(r.Context(), database.UpdateOrganizationParams{
+			Name:       input.Name,
+			CareersUrl: input.CareersURL,
+			ID:         organizationID,
+		})
+		if err == sql.ErrNoRows {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			log.Printf("update organization: %v", err)
+			http.Error(w, "Unable to update organization", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, fmt.Sprintf("/organizations/%d/edit?saved=1", organizationID), http.StatusSeeOther)
+	})
 	mux.HandleFunc("POST /applications", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
 			http.Error(w, "Invalid request origin", http.StatusForbidden)
@@ -178,7 +275,10 @@ func main() {
 		defer tx.Rollback()
 
 		txQueries := queries.WithTx(tx)
-		organization, err := txQueries.GetOrCreateOrganization(r.Context(), input.OrganizationName)
+		organization, err := txQueries.GetOrCreateOrganization(r.Context(), database.GetOrCreateOrganizationParams{
+			Name:       input.OrganizationName,
+			CareersUrl: input.CareersURL,
+		})
 		if err != nil {
 			log.Printf("get or create organization: %v", err)
 			http.Error(w, "Unable to save application", http.StatusInternalServerError)
@@ -240,7 +340,10 @@ func main() {
 		defer tx.Rollback()
 
 		txQueries := queries.WithTx(tx)
-		organization, err := txQueries.GetOrCreateOrganization(r.Context(), input.OrganizationName)
+		organization, err := txQueries.GetOrCreateOrganization(r.Context(), database.GetOrCreateOrganizationParams{
+			Name:       input.OrganizationName,
+			CareersUrl: input.CareersURL,
+		})
 		if err != nil {
 			log.Printf("get or create organization for application update: %v", err)
 			http.Error(w, "Unable to update application", http.StatusInternalServerError)
@@ -326,6 +429,14 @@ func renderOverview(w http.ResponseWriter, r *http.Request, queries *database.Qu
 	}
 }
 
+func renderOrganizationForm(w http.ResponseWriter, templates *template.Template, form organizationFormView, status int) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	if err := templates.ExecuteTemplate(w, "organization-edit.html", form); err != nil {
+		log.Printf("render organization form: %v", err)
+	}
+}
+
 func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewData, error) {
 	applications, err := queries.ListApplications(ctx)
 	if err != nil {
@@ -404,6 +515,9 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 		form.Status = strings.TrimSpace(r.FormValue("status"))
 	}
 	form.WorkLocation = strings.TrimSpace(r.FormValue("work_location"))
+	if !includeStatus {
+		form.CareersURL = strings.TrimSpace(r.FormValue("careers_url"))
+	}
 	form.PostingURL = strings.TrimSpace(r.FormValue("posting_url"))
 	form.SalaryMin = strings.TrimSpace(r.FormValue("salary_min"))
 	form.SalaryMax = strings.TrimSpace(r.FormValue("salary_max"))
@@ -423,12 +537,10 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 		form.WorkLocationError = "Choose remote or local."
 	}
 
-	if form.PostingURL != "" {
-		postingURL, err := url.ParseRequestURI(form.PostingURL)
-		if err != nil || postingURL.Host == "" || (postingURL.Scheme != "http" && postingURL.Scheme != "https") {
-			form.PostingURLError = "Enter a complete HTTP or HTTPS URL."
-		}
+	if !includeStatus {
+		form.CareersURLError = validateOptionalHTTPURL(form.CareersURL)
 	}
+	form.PostingURLError = validateOptionalHTTPURL(form.PostingURL)
 
 	salaryMin, salaryMinError := parseOptionalSalary(form.SalaryMin)
 	salaryMax, salaryMaxError := parseOptionalSalary(form.SalaryMax)
@@ -456,6 +568,7 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 		form.RoleTitleError != "" ||
 		form.StatusError != "" ||
 		form.WorkLocationError != "" ||
+		form.CareersURLError != "" ||
 		form.PostingURLError != "" ||
 		form.SalaryMinError != "" ||
 		form.SalaryMaxError != "" ||
@@ -470,12 +583,59 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 		RoleTitle:        form.RoleTitle,
 		Status:           form.Status,
 		WorkLocation:     form.WorkLocation,
+		CareersURL:       nullableString(form.CareersURL),
 		PostingURL:       nullableString(form.PostingURL),
 		SalaryMin:        salaryMin,
 		SalaryMax:        salaryMax,
 		AppliedAt:        nullableString(form.AppliedAt),
 		Notes:            nullableString(form.Notes),
 	}
+}
+
+func newOrganizationFormView(organization database.Organization) organizationFormView {
+	return organizationFormView{
+		ID:         organization.ID,
+		Name:       organization.Name,
+		CareersURL: nullStringValue(organization.CareersUrl),
+	}
+}
+
+func parseOrganizationForm(r *http.Request) (organizationFormView, organizationFormInput) {
+	form := organizationFormView{}
+	if err := r.ParseForm(); err != nil {
+		form.HasErrors = true
+		form.GeneralError = "The form could not be read. Please try again."
+		return form, organizationFormInput{}
+	}
+
+	form.Name = normalizeSingleLine(r.FormValue("name"))
+	form.CareersURL = strings.TrimSpace(r.FormValue("careers_url"))
+	if form.Name == "" {
+		form.NameError = "Enter an organization name."
+	}
+	form.CareersURLError = validateOptionalHTTPURL(form.CareersURL)
+	form.HasErrors = form.NameError != "" || form.CareersURLError != ""
+	if form.HasErrors {
+		form.GeneralError = "Review the highlighted fields and try again."
+		return form, organizationFormInput{}
+	}
+
+	return form, organizationFormInput{
+		Name:       form.Name,
+		CareersURL: nullableString(form.CareersURL),
+	}
+}
+
+func validateOptionalHTTPURL(value string) string {
+	if value == "" {
+		return ""
+	}
+
+	parsedURL, err := url.ParseRequestURI(value)
+	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return "Enter a complete HTTP or HTTPS URL."
+	}
+	return ""
 }
 
 func normalizeSingleLine(value string) string {
@@ -514,6 +674,14 @@ func parseApplicationID(r *http.Request) (int64, error) {
 	return applicationID, nil
 }
 
+func parseOrganizationID(r *http.Request) (int64, error) {
+	organizationID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || organizationID < 1 {
+		return 0, fmt.Errorf("invalid organization id")
+	}
+	return organizationID, nil
+}
+
 func isSameOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	return origin == "" || origin == "http://"+r.Host || origin == "https://"+r.Host
@@ -538,6 +706,7 @@ func newApplicationView(application database.ListApplicationsRow, now time.Time)
 
 	return applicationView{
 		ID:                  application.ID,
+		OrganizationID:      application.OrganizationID,
 		OrganizationName:    application.OrganizationName,
 		OrganizationInitial: organizationInitial(application.OrganizationName),
 		OrganizationMark:    organizationMark(application.OrganizationID),
@@ -551,6 +720,7 @@ func newApplicationView(application database.ListApplicationsRow, now time.Time)
 		WorkLocation:        application.WorkLocation,
 		StatusLabel:         statusLabel,
 		StatusClass:         statusClass,
+		CareersURL:          nullStringValue(application.OrganizationCareersUrl),
 		PostingURL:          nullStringValue(application.PostingUrl),
 		AppliedAt:           nullStringValue(application.AppliedAt),
 		AppliedAtDisplay:    formatAppliedAt(application.AppliedAt),

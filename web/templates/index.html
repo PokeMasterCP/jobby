@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
   <title>Jobby — Search overview</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=application-actions">
-  <script src="/static/js/application-form.js?v=application-actions" defer></script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=organization-editor">
+  <script src="/static/js/application-form.js?v=organization-editor" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -116,6 +116,7 @@
                       aria-haspopup="dialog"
                       data-open-application-summary
                       data-application-id="{{.ID}}"
+                      data-organization-id="{{.OrganizationID}}"
                       data-organization-name="{{.OrganizationName}}"
                       data-role-title="{{.RoleTitle}}"
                       data-status="{{.Status}}"
@@ -126,6 +127,7 @@
                       data-salary-max="{{.SalaryMax}}"
                       data-work-location="{{.WorkLocation}}"
                       data-location="{{.Location}}"
+                      data-careers-url="{{.CareersURL}}"
                       data-posting-url="{{.PostingURL}}"
                       data-applied-at="{{.AppliedAt}}"
                       data-applied-at-display="{{.AppliedAtDisplay}}"
@@ -265,6 +267,12 @@
             {{range .OrganizationNames}}<option value="{{.}}"></option>{{end}}
           </datalist>
 
+          <label class="form-field form-field-wide">
+            <span>Career portal URL <small>Optional</small></span>
+            <input type="url" name="careers_url" inputmode="url" placeholder="Organization's Career Portal link" value="{{.ApplicationForm.CareersURL}}" {{if .ApplicationForm.CareersURLError}}aria-invalid="true" aria-describedby="careers-url-error"{{end}}>
+            {{with .ApplicationForm.CareersURLError}}<small class="form-error" id="careers-url-error">{{.}}</small>{{end}}
+          </label>
+
           <label class="form-field">
             <span>Role title <small>Required</small></span>
             <input type="text" name="role_title" autocomplete="off" placeholder="e.g. Software Engineer" value="{{.ApplicationForm.RoleTitle}}" required {{if .ApplicationForm.RoleTitleError}}aria-invalid="true" aria-describedby="role-title-error"{{end}}>
@@ -370,9 +378,21 @@
           <p data-detail-notes></p>
         </div>
 
-        <a class="application-posting-link" href="#" target="_blank" rel="noreferrer" data-detail-posting-url>
-          Open original posting <span aria-hidden="true">↗</span>
-        </a>
+        <div class="application-resource-links" aria-label="Application links">
+          <a class="application-resource-link is-primary" href="#" target="_blank" rel="noreferrer" data-detail-careers-url hidden>
+            Open career portal <span aria-hidden="true">↗</span>
+          </a>
+          <a class="application-resource-missing is-action" href="#" data-detail-careers-missing hidden>
+            <span><strong>Career portal link missing.</strong> Edit the organization to add it.</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <a class="application-resource-link is-secondary" href="#" target="_blank" rel="noreferrer" data-detail-posting-url hidden>
+            Open original posting <span aria-hidden="true">↗</span>
+          </a>
+          <p class="application-resource-missing" data-detail-posting-missing hidden>
+            <strong>Original posting link missing.</strong> Edit this application to add it.
+          </p>
+        </div>
 
         <footer class="application-summary-actions">
           <p>A quick check keeps the follow-up queue honest.</p>

@@ -1,8 +1,27 @@
 (() => {
+  const bindCareerPortalPlaceholder = (form) => {
+    const organizationField = form?.elements.namedItem("organization_name");
+    const careersURLField = form?.elements.namedItem("careers_url");
+    if (!organizationField || !careersURLField) {
+      return () => {};
+    }
+
+    const updatePlaceholder = () => {
+      const organizationName = organizationField.value.trim() || "Organization";
+      careersURLField.placeholder = `${organizationName}'s Career Portal link`;
+    };
+
+    organizationField.addEventListener("input", updatePlaceholder);
+    updatePlaceholder();
+    return updatePlaceholder;
+  };
+
   const createDialog = document.querySelector("#application-dialog");
   const createOpenButton = document.querySelector("[data-open-application-dialog]");
 
   if (createDialog && createOpenButton) {
+    bindCareerPortalPlaceholder(createDialog.querySelector("form"));
+
     createOpenButton.addEventListener("click", () => {
       createDialog.showModal();
     });
@@ -36,7 +55,10 @@
   const kicker = detailDialog.querySelector("[data-detail-kicker]");
   const organization = detailDialog.querySelector("[data-detail-organization]");
   const status = detailDialog.querySelector("[data-detail-status]");
+  const careersLink = detailDialog.querySelector("[data-detail-careers-url]");
+  const careersMissing = detailDialog.querySelector("[data-detail-careers-missing]");
   const postingLink = detailDialog.querySelector("[data-detail-posting-url]");
+  const postingMissing = detailDialog.querySelector("[data-detail-posting-missing]");
 
   const setText = (selector, value) => {
     const element = detailDialog.querySelector(selector);
@@ -61,6 +83,19 @@
     }
   };
 
+  const setResourceLink = (link, missingMessage, url) => {
+    if (url) {
+      link.href = url;
+      link.hidden = false;
+      missingMessage.hidden = true;
+      return;
+    }
+
+    link.removeAttribute("href");
+    link.hidden = true;
+    missingMessage.hidden = false;
+  };
+
   const populateSummary = (application) => {
     organization.textContent = application.organizationName;
     setText("[data-detail-role]", application.roleTitle);
@@ -73,13 +108,9 @@
     status.textContent = application.statusLabel;
     status.className = `status-tag ${application.statusClass}`;
 
-    if (application.postingUrl) {
-      postingLink.href = application.postingUrl;
-      postingLink.hidden = false;
-    } else {
-      postingLink.removeAttribute("href");
-      postingLink.hidden = true;
-    }
+    setResourceLink(careersLink, careersMissing, application.careersUrl);
+    careersMissing.href = `/organizations/${application.organizationId}/edit`;
+    setResourceLink(postingLink, postingMissing, application.postingUrl);
 
     setActions(application.applicationId);
   };

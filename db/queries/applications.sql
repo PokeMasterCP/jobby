@@ -88,6 +88,7 @@ SELECT
     applications.id,
     applications.organization_id,
     organizations.name AS organization_name,
+    organizations.careers_url AS organization_careers_url,
     applications.role_title,
     applications.status,
     applications.posting_url,
