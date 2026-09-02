@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
   <title>Jobby — Search overview</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=quick-status">
-  <script src="/static/js/application-form.js?v=quick-status" defer></script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=applications-page">
+  <script src="/static/js/application-form.js?v=applications-page" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -23,7 +23,7 @@
           <span aria-hidden="true">▦</span>
           Overview
         </a>
-        <a href="#applications">
+        <a href="/applications">
           <span aria-hidden="true">◎</span>
           Applications
           <small>{{.TotalApplications}}</small>
@@ -95,7 +95,7 @@
                 <p class="section-number">02 / Active ledger</p>
                 <h2 id="applications-title">Applications</h2>
               </div>
-              <button class="quiet-button" type="button" disabled>View all <span aria-hidden="true">→</span></button>
+              <a class="quiet-button" href="/applications">View all <span aria-hidden="true">→</span></a>
             </header>
 
             {{if .Applications}}
@@ -330,171 +330,6 @@
     </section>
   </dialog>
 
-  <dialog
-    class="application-dialog application-detail-dialog"
-    id="application-detail-dialog"
-    aria-labelledby="application-detail-title"
-    {{if .EditApplicationForm.HasErrors}}data-open-on-load data-start-editing data-open-application-id="{{.SelectedApplicationID}}"{{end}}
-  >
-    <section class="application-dialog-card">
-      <header class="application-dialog-header application-detail-header">
-        <div>
-          <p class="section-number" data-detail-kicker>05 / Application brief</p>
-          <h2 id="application-detail-title" data-detail-organization>{{.EditApplicationForm.OrganizationName}}</h2>
-        </div>
-        <button class="dialog-close" type="button" aria-label="Close application details" data-close-application-detail>×</button>
-      </header>
-
-      <section class="application-summary" data-application-summary>
-        <div class="application-summary-lead">
-          <div>
-            <p class="application-summary-label">Role</p>
-            <h3 data-detail-role></h3>
-          </div>
-          <form class="application-status-control" method="post" data-change-application-status>
-            <select class="status-tag status-quick-select status-applied" name="status" aria-label="Change status, currently Applied" data-detail-status>
-              <option value="applied">Applied</option>
-              <option value="in_contact">In contact</option>
-              <option value="accepted">Accepted</option>
-              <option value="rejected_after_contact">Rejected after contact</option>
-              <option value="rejected_no_contact">Rejected, no contact</option>
-            </select>
-          </form>
-        </div>
-
-        <dl class="application-summary-grid">
-          <div>
-            <dt>Salary</dt>
-            <dd data-detail-salary></dd>
-          </div>
-          <div>
-            <dt>Location</dt>
-            <dd data-detail-location></dd>
-          </div>
-          <div>
-            <dt>Applied</dt>
-            <dd data-detail-applied-at></dd>
-          </div>
-          <div>
-            <dt>Last checked</dt>
-            <dd data-detail-last-checked></dd>
-          </div>
-        </dl>
-
-        <div class="application-summary-notes">
-          <p class="application-summary-label">Notes</p>
-          <p data-detail-notes></p>
-        </div>
-
-        <div class="application-resource-links" aria-label="Application links">
-          <a class="application-resource-link is-primary" href="#" target="_blank" rel="noreferrer" data-detail-careers-url hidden>
-            Open career portal <span aria-hidden="true">↗</span>
-          </a>
-          <a class="application-resource-missing is-action" href="#" data-detail-careers-missing hidden>
-            <span><strong>Career portal link missing.</strong> Edit the organization to add it.</span>
-            <span aria-hidden="true">→</span>
-          </a>
-          <a class="application-resource-link is-secondary" href="#" target="_blank" rel="noreferrer" data-detail-posting-url hidden>
-            Open original posting <span aria-hidden="true">↗</span>
-          </a>
-          <p class="application-resource-missing" data-detail-posting-missing hidden>
-            <strong>Original posting link missing.</strong> Edit this application to add it.
-          </p>
-        </div>
-
-        <footer class="application-summary-actions">
-          <p>A quick check keeps the follow-up queue honest.</p>
-          <div>
-            <form method="post" data-delete-application>
-              <button class="form-cancel delete-button" type="submit">Delete</button>
-            </form>
-            <button class="form-cancel" type="button" data-edit-application>Edit application</button>
-            <form method="post" data-mark-application-checked>
-              <button class="form-submit checked-button" type="submit"><span aria-hidden="true">✓</span> Just checked</button>
-            </form>
-          </div>
-        </footer>
-      </section>
-
-      <form class="application-form" method="post" data-application-edit-form hidden>
-        {{if .EditApplicationForm.GeneralError}}
-          <p class="application-form-alert" role="alert">{{.EditApplicationForm.GeneralError}}</p>
-        {{end}}
-        <p class="application-form-intro">Update the record or move it to its next stage. Portal checks stay separate so the timeline remains accurate.</p>
-
-        <div class="application-form-grid">
-          <label class="form-field form-field-wide">
-            <span>Organization <small>Required</small></span>
-            <input type="text" name="organization_name" list="organization-options" autocomplete="organization" value="{{.EditApplicationForm.OrganizationName}}" required {{if .EditApplicationForm.OrganizationError}}aria-invalid="true" aria-describedby="edit-organization-error"{{end}}>
-            {{with .EditApplicationForm.OrganizationError}}<small class="form-error" id="edit-organization-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field">
-            <span>Role title <small>Required</small></span>
-            <input type="text" name="role_title" autocomplete="off" value="{{.EditApplicationForm.RoleTitle}}" required {{if .EditApplicationForm.RoleTitleError}}aria-invalid="true" aria-describedby="edit-role-title-error"{{end}}>
-            {{with .EditApplicationForm.RoleTitleError}}<small class="form-error" id="edit-role-title-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field">
-            <span>Status <small>Required</small></span>
-            <select name="status" required {{if .EditApplicationForm.StatusError}}aria-invalid="true" aria-describedby="edit-status-error"{{end}}>
-              <option value="applied" {{if eq .EditApplicationForm.Status "applied"}}selected{{end}}>Applied</option>
-              <option value="in_contact" {{if eq .EditApplicationForm.Status "in_contact"}}selected{{end}}>In contact</option>
-              <option value="accepted" {{if eq .EditApplicationForm.Status "accepted"}}selected{{end}}>Accepted</option>
-              <option value="rejected_after_contact" {{if eq .EditApplicationForm.Status "rejected_after_contact"}}selected{{end}}>Rejected after contact</option>
-              <option value="rejected_no_contact" {{if eq .EditApplicationForm.Status "rejected_no_contact"}}selected{{end}}>Rejected, no contact</option>
-            </select>
-            {{with .EditApplicationForm.StatusError}}<small class="form-error" id="edit-status-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field">
-            <span>Work location <small>Required</small></span>
-            <select name="work_location" required {{if .EditApplicationForm.WorkLocationError}}aria-invalid="true" aria-describedby="edit-work-location-error"{{end}}>
-              <option value="remote" {{if eq .EditApplicationForm.WorkLocation "remote"}}selected{{end}}>Remote</option>
-              <option value="local" {{if eq .EditApplicationForm.WorkLocation "local"}}selected{{end}}>Local</option>
-            </select>
-            {{with .EditApplicationForm.WorkLocationError}}<small class="form-error" id="edit-work-location-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field form-field-wide">
-            <span>Posting URL <small>Optional</small></span>
-            <input type="url" name="posting_url" inputmode="url" value="{{.EditApplicationForm.PostingURL}}" {{if .EditApplicationForm.PostingURLError}}aria-invalid="true" aria-describedby="edit-posting-url-error"{{end}}>
-            {{with .EditApplicationForm.PostingURLError}}<small class="form-error" id="edit-posting-url-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field">
-            <span>Salary minimum <small>Optional</small></span>
-            <input type="number" name="salary_min" min="0" step="1000" inputmode="numeric" value="{{.EditApplicationForm.SalaryMin}}" {{if .EditApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="edit-salary-min-error"{{end}}>
-            {{with .EditApplicationForm.SalaryMinError}}<small class="form-error" id="edit-salary-min-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field">
-            <span>Salary maximum <small>Optional</small></span>
-            <input type="number" name="salary_max" min="0" step="1000" inputmode="numeric" value="{{.EditApplicationForm.SalaryMax}}" {{if .EditApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="edit-salary-max-error"{{end}}>
-            {{with .EditApplicationForm.SalaryMaxError}}<small class="form-error" id="edit-salary-max-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field">
-            <span>Applied date <small>Optional</small></span>
-            <input type="date" name="applied_at" value="{{.EditApplicationForm.AppliedAt}}" {{if .EditApplicationForm.AppliedAtError}}aria-invalid="true" aria-describedby="edit-applied-at-error"{{end}}>
-            {{with .EditApplicationForm.AppliedAtError}}<small class="form-error" id="edit-applied-at-error">{{.}}</small>{{end}}
-          </label>
-
-          <label class="form-field form-field-wide">
-            <span>Notes <small>Optional</small></span>
-            <textarea name="notes" rows="3">{{.EditApplicationForm.Notes}}</textarea>
-          </label>
-        </div>
-
-        <footer class="application-form-footer">
-          <p>Changes are saved directly to your local database.</p>
-          <div>
-            <button class="form-cancel" type="button" data-cancel-application-edit>Back to summary</button>
-            <button class="form-submit" type="submit">Save changes</button>
-          </div>
-        </footer>
-      </form>
-    </section>
-  </dialog>
+  {{template "application-detail-dialog" .}}
 </body>
 </html>

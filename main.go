@@ -48,6 +48,29 @@ type overviewData struct {
 	SelectedApplicationID     int64
 }
 
+type applicationsPageData struct {
+	Applications          []applicationView
+	OrganizationOptions   []organizationFilterOption
+	TotalApplications     int
+	OrganizationCount     int
+	FilteredCount         int
+	FilterSummary         string
+	Filters               applicationFilters
+	EditApplicationForm   applicationFormView
+	SelectedApplicationID int64
+}
+
+type applicationFilters struct {
+	Status         string
+	Income         string
+	OrganizationID int64
+}
+
+type organizationFilterOption struct {
+	ID   int64
+	Name string
+}
+
 type applicationView struct {
 	ID                  int64
 	OrganizationID      int64
@@ -124,6 +147,11 @@ type overviewPageState struct {
 	SelectedApplicationID int64
 }
 
+type applicationsPageState struct {
+	EditApplicationForm   applicationFormView
+	SelectedApplicationID int64
+}
+
 type organizationFormView struct {
 	ID              int64
 	Name            string
@@ -176,6 +204,9 @@ func main() {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		renderOverview(w, r, queries, templates, overviewPageState{}, http.StatusOK)
+	})
+	mux.HandleFunc("GET /applications", func(w http.ResponseWriter, r *http.Request) {
+		renderApplications(w, r.Context(), queries, templates, parseApplicationFilters(r.URL.Query()), applicationsPageState{}, http.StatusOK)
 	})
 	mux.HandleFunc("GET /organizations/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
 		organizationID, err := parseOrganizationID(r)
@@ -324,10 +355,17 @@ func main() {
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		form, input := parseApplicationForm(r, true)
 		if form.HasErrors {
-			renderOverview(w, r, queries, templates, overviewPageState{
-				EditApplicationForm:   form,
-				SelectedApplicationID: applicationID,
-			}, http.StatusUnprocessableEntity)
+			if referer, ok := applicationsPageReferer(r); ok {
+				renderApplications(w, r.Context(), queries, templates, parseApplicationFilters(referer.Query()), applicationsPageState{
+					EditApplicationForm:   form,
+					SelectedApplicationID: applicationID,
+				}, http.StatusUnprocessableEntity)
+			} else {
+				renderOverview(w, r, queries, templates, overviewPageState{
+					EditApplicationForm:   form,
+					SelectedApplicationID: applicationID,
+				}, http.StatusUnprocessableEntity)
+			}
 			return
 		}
 
@@ -378,7 +416,7 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+		http.Redirect(w, r, applicationMutationReturnPath(r), http.StatusSeeOther)
 	})
 	mux.HandleFunc("POST /applications/{id}/status", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
@@ -413,7 +451,7 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+		http.Redirect(w, r, applicationMutationReturnPath(r), http.StatusSeeOther)
 	})
 	mux.HandleFunc("POST /applications/{id}/checked", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
@@ -436,7 +474,7 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+		http.Redirect(w, r, applicationMutationReturnPath(r), http.StatusSeeOther)
 	})
 	mux.HandleFunc("POST /applications/{id}/delete", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
@@ -459,7 +497,7 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, "/#applications", http.StatusSeeOther)
+		http.Redirect(w, r, applicationMutationReturnPath(r), http.StatusSeeOther)
 	})
 
 	addr := ":8080"
@@ -484,6 +522,23 @@ func renderOverview(w http.ResponseWriter, r *http.Request, queries *database.Qu
 	w.WriteHeader(status)
 	if err := templates.ExecuteTemplate(w, "index.html", data); err != nil {
 		log.Printf("render overview: %v", err)
+	}
+}
+
+func renderApplications(w http.ResponseWriter, ctx context.Context, queries *database.Queries, templates *template.Template, filters applicationFilters, state applicationsPageState, status int) {
+	data, err := loadApplicationsPageData(ctx, queries, filters)
+	if err != nil {
+		log.Printf("list applications page: %v", err)
+		http.Error(w, "Unable to load applications", http.StatusInternalServerError)
+		return
+	}
+	data.EditApplicationForm = state.EditApplicationForm
+	data.SelectedApplicationID = state.SelectedApplicationID
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	if err := templates.ExecuteTemplate(w, "applications.html", data); err != nil {
+		log.Printf("render applications page: %v", err)
 	}
 }
 
@@ -542,6 +597,9 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	data.ApplicationSummary = fmt.Sprintf("Showing all %d open applications", data.OpenCount)
 	if data.OpenCount == 1 {
 		data.ApplicationSummary = "Showing 1 open application"
+	} else if len(data.Applications) > 10 {
+		data.ApplicationSummary = fmt.Sprintf("Showing 10 most recent of %d open applications", data.OpenCount)
+		data.Applications = data.Applications[:10]
 	}
 
 	sort.Slice(data.PortalApplications, func(i, j int) bool {
@@ -557,6 +615,102 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	}
 
 	return data, nil
+}
+
+func loadApplicationsPageData(ctx context.Context, queries *database.Queries, filters applicationFilters) (applicationsPageData, error) {
+	applications, err := queries.ListApplications(ctx)
+	if err != nil {
+		return applicationsPageData{}, err
+	}
+
+	data := applicationsPageData{
+		TotalApplications: len(applications),
+		Filters:           filters,
+	}
+	organizations := make(map[int64]string)
+	now := time.Now().In(applicationLocation)
+	for _, application := range applications {
+		organizations[application.OrganizationID] = application.OrganizationName
+		if applicationMatchesFilters(application, filters) {
+			data.Applications = append(data.Applications, newApplicationView(application, now))
+		}
+	}
+
+	data.OrganizationCount = len(organizations)
+	for id, name := range organizations {
+		data.OrganizationOptions = append(data.OrganizationOptions, organizationFilterOption{ID: id, Name: name})
+	}
+	sort.Slice(data.OrganizationOptions, func(i, j int) bool {
+		return data.OrganizationOptions[i].Name < data.OrganizationOptions[j].Name
+	})
+
+	data.FilteredCount = len(data.Applications)
+	data.FilterSummary = fmt.Sprintf("Showing all %d applications", data.TotalApplications)
+	if data.TotalApplications == 1 {
+		data.FilterSummary = "Showing 1 application"
+	}
+	if filters.Status != "" || filters.Income != "" || filters.OrganizationID != 0 {
+		data.FilterSummary = fmt.Sprintf("Showing %d of %d applications", data.FilteredCount, data.TotalApplications)
+	}
+
+	return data, nil
+}
+
+func parseApplicationFilters(values url.Values) applicationFilters {
+	filters := applicationFilters{}
+	status := strings.TrimSpace(values.Get("status"))
+	if status == "open" || isApplicationStatus(status) {
+		filters.Status = status
+	}
+
+	income := strings.TrimSpace(values.Get("income"))
+	switch income {
+	case "listed", "75000", "100000", "125000", "150000":
+		filters.Income = income
+	}
+
+	organizationID, err := strconv.ParseInt(values.Get("organization"), 10, 64)
+	if err == nil && organizationID > 0 {
+		filters.OrganizationID = organizationID
+	}
+	return filters
+}
+
+func applicationMatchesFilters(application database.ListApplicationsRow, filters applicationFilters) bool {
+	if filters.Status == "open" && !isOpenStatus(application.Status) {
+		return false
+	}
+	if filters.Status != "" && filters.Status != "open" && application.Status != filters.Status {
+		return false
+	}
+	if filters.OrganizationID != 0 && application.OrganizationID != filters.OrganizationID {
+		return false
+	}
+	if filters.Income == "listed" && (!application.SalaryMin.Valid || !application.SalaryMax.Valid) {
+		return false
+	}
+	if filters.Income != "" && filters.Income != "listed" {
+		minimum, _ := strconv.ParseInt(filters.Income, 10, 64)
+		if !application.SalaryMax.Valid || application.SalaryMax.Int64 < minimum {
+			return false
+		}
+	}
+	return true
+}
+
+func applicationsPageReferer(r *http.Request) (*url.URL, bool) {
+	referer, err := url.Parse(r.Referer())
+	if err != nil || referer.Path != "/applications" {
+		return nil, false
+	}
+	return referer, true
+}
+
+func applicationMutationReturnPath(r *http.Request) string {
+	if referer, ok := applicationsPageReferer(r); ok {
+		return referer.RequestURI()
+	}
+	return "/#applications"
 }
 
 func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormView, applicationFormInput) {
