@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Review and filter every job application saved in Jobby.">
+  <title>Jobby — Applications</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=applications-page">
+  <script src="/static/js/application-form.js?v=applications-page" defer></script>
+</head>
+<body class="applications-index-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <a class="wordmark" href="/" aria-label="Jobby overview">Jobby<span aria-hidden="true">*</span></a>
+        <p class="workspace-label">Personal search desk</p>
+      </div>
+
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="/">
+          <span aria-hidden="true">▦</span>
+          Overview
+        </a>
+        <a class="active" href="/applications" aria-current="page">
+          <span aria-hidden="true">◎</span>
+          Applications
+          <small>{{.TotalApplications}}</small>
+        </a>
+        <a href="/#organizations">
+          <span aria-hidden="true">◇</span>
+          Organizations
+          <small>{{.OrganizationCount}}</small>
+        </a>
+      </nav>
+
+      <div class="sidebar-note">
+        <span class="note-mark" aria-hidden="true">*</span>
+        <p>Every application,<br>kept in view.</p>
+      </div>
+
+      <div class="local-status">
+        <span aria-hidden="true"></span>
+        <p>Saved locally<br><strong>just now</strong></p>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="mobile-header">
+        <a class="wordmark" href="/">Jobby<span aria-hidden="true">*</span></a>
+        <a class="mobile-overview-link" href="/">Overview →</a>
+      </header>
+
+      <main class="applications-index-main" id="main-content">
+        <header class="applications-index-header">
+          <div>
+            <p class="eyebrow"><span>02</span> Application archive</p>
+            <h1>Every lead,<br><em>one record.</em></h1>
+          </div>
+          <aside class="archive-tally" aria-label="Application total">
+            <p>On the books</p>
+            <strong>{{.TotalApplications}}</strong>
+            <span>{{if eq .TotalApplications 1}}application{{else}}applications{{end}} recorded</span>
+          </aside>
+        </header>
+
+        <section class="application-filter-panel" aria-labelledby="filter-heading">
+          <header>
+            <div>
+              <p class="section-number">Filter desk</p>
+              <h2 id="filter-heading">Narrow the ledger</h2>
+            </div>
+            <span aria-hidden="true">*</span>
+          </header>
+          <form class="application-filters" method="get" action="/applications">
+            <label>
+              <span>Status</span>
+              <select name="status">
+                <option value="">Any status</option>
+                <option value="open" {{if eq .Filters.Status "open"}}selected{{end}}>Open</option>
+                <option value="applied" {{if eq .Filters.Status "applied"}}selected{{end}}>Applied</option>
+                <option value="in_contact" {{if eq .Filters.Status "in_contact"}}selected{{end}}>In contact</option>
+                <option value="accepted" {{if eq .Filters.Status "accepted"}}selected{{end}}>Accepted</option>
+                <option value="rejected_after_contact" {{if eq .Filters.Status "rejected_after_contact"}}selected{{end}}>Rejected after contact</option>
+                <option value="rejected_no_contact" {{if eq .Filters.Status "rejected_no_contact"}}selected{{end}}>Rejected, no contact</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Income potential</span>
+              <select name="income">
+                <option value="">Any income</option>
+                <option value="listed" {{if eq .Filters.Income "listed"}}selected{{end}}>Salary listed</option>
+                <option value="75000" {{if eq .Filters.Income "75000"}}selected{{end}}>Range reaches $75K+</option>
+                <option value="100000" {{if eq .Filters.Income "100000"}}selected{{end}}>Range reaches $100K+</option>
+                <option value="125000" {{if eq .Filters.Income "125000"}}selected{{end}}>Range reaches $125K+</option>
+                <option value="150000" {{if eq .Filters.Income "150000"}}selected{{end}}>Range reaches $150K+</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Organization</span>
+              <select name="organization">
+                <option value="">Any organization</option>
+                {{range .OrganizationOptions}}
+                  <option value="{{.ID}}" {{if eq $.Filters.OrganizationID .ID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+              </select>
+            </label>
+
+            <div class="application-filter-actions">
+              {{if or .Filters.Status .Filters.Income .Filters.OrganizationID}}
+                <a href="/applications">Clear</a>
+              {{end}}
+              <button type="submit">Apply filters <span aria-hidden="true">→</span></button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel application-archive-panel" aria-labelledby="application-archive-title">
+          <header class="panel-header">
+            <div>
+              <p class="section-number">Complete history</p>
+              <h2 id="application-archive-title">Application ledger</h2>
+            </div>
+            <span class="archive-result-count">{{.FilteredCount}} shown</span>
+          </header>
+
+          {{if .Applications}}
+            <div class="application-labels" aria-hidden="true">
+              <span>Organization / role</span>
+              <span>Salary</span>
+              <span>Location</span>
+              <span>Status</span>
+              <span>Applied</span>
+            </div>
+
+            <ol class="application-list">
+              {{range .Applications}}
+                <li>
+                  <button
+                    class="application-row"
+                    type="button"
+                    aria-haspopup="dialog"
+                    data-open-application-summary
+                    data-application-id="{{.ID}}"
+                    data-organization-id="{{.OrganizationID}}"
+                    data-organization-name="{{.OrganizationName}}"
+                    data-role-title="{{.RoleTitle}}"
+                    data-status="{{.Status}}"
+                    data-status-label="{{.StatusLabel}}"
+                    data-status-class="{{.StatusClass}}"
+                    data-salary="{{.Salary}}"
+                    data-salary-min="{{.SalaryMin}}"
+                    data-salary-max="{{.SalaryMax}}"
+                    data-work-location="{{.WorkLocation}}"
+                    data-location="{{.Location}}"
+                    data-careers-url="{{.CareersURL}}"
+                    data-posting-url="{{.PostingURL}}"
+                    data-applied-at="{{.AppliedAt}}"
+                    data-applied-at-display="{{.AppliedAtDisplay}}"
+                    data-last-checked="{{.LastChecked}}{{with .LastCheckedDetail}} · {{.}}{{end}}"
+                    data-notes="{{.Notes}}"
+                  >
+                    <span class="application-identity">
+                      <span class="org-mark {{.OrganizationMark}}">{{.OrganizationInitial}}</span>
+                      <span>
+                        <strong>{{.OrganizationName}}</strong>
+                        <span>{{.RoleTitle}}</span>
+                      </span>
+                    </span>
+                    <span class="salary">{{.Salary}}</span>
+                    <span class="location"><span aria-hidden="true">{{.LocationIcon}}</span> {{.Location}}</span>
+                    <span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span>
+                    <span class="last-checked archive-applied-date">
+                      <strong>{{.AppliedAtDisplay}}</strong>
+                    </span>
+                    <span class="application-row-arrow" aria-hidden="true">→</span>
+                  </button>
+                </li>
+              {{end}}
+            </ol>
+
+            <footer class="panel-footer">
+              <span>{{.FilterSummary}}</span>
+              <span>Sorted by newest added</span>
+            </footer>
+          {{else}}
+            <div class="application-empty application-filter-empty">
+              <span aria-hidden="true">*</span>
+              <div>
+                {{if .TotalApplications}}
+                  <h3>No records match.</h3>
+                  <p>Try clearing a filter or widening the income range to bring more applications back into view.</p>
+                  <a href="/applications">Clear all filters →</a>
+                {{else}}
+                  <h3>No applications yet.</h3>
+                  <p>Add your first application from the overview. It will appear here as part of the complete ledger.</p>
+                  <a href="/">Return to overview →</a>
+                {{end}}
+              </div>
+            </div>
+            <footer class="panel-footer">
+              <span>{{.FilterSummary}}</span>
+              <span>0 shown</span>
+            </footer>
+          {{end}}
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <datalist id="organization-options">
+    {{range .OrganizationOptions}}<option value="{{.Name}}"></option>{{end}}
+  </datalist>
+  {{template "application-detail-dialog" .}}
+</body>
+</html>
