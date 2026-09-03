@@ -998,10 +998,18 @@ func formatSalary(minimum, maximum sql.NullInt64) string {
 }
 
 func compactSalary(amount int64) string {
-	if amount%1000 == 0 {
-		return fmt.Sprintf("$%dK", amount/1000)
+	if amount < 1000 {
+		return fmt.Sprintf("$%d", amount)
 	}
-	return fmt.Sprintf("$%d", amount)
+
+	wholeThousands := amount / 1000
+	remainder := amount % 1000
+	if remainder == 0 {
+		return fmt.Sprintf("$%dK", wholeThousands)
+	}
+
+	decimal := strings.TrimRight(fmt.Sprintf("%03d", remainder), "0")
+	return fmt.Sprintf("$%d.%sK", wholeThousands, decimal)
 }
 
 func formatOptionalInt(value sql.NullInt64) string {
