@@ -133,13 +133,13 @@
 
         <label class="form-field">
           <span>Salary minimum <small>Optional</small></span>
-          <input type="number" name="salary_min" min="0" step="1000" inputmode="numeric" value="{{.EditApplicationForm.SalaryMin}}" {{if .EditApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="edit-salary-min-error"{{end}}>
+          <input type="number" name="salary_min" min="0" step="1" inputmode="numeric" value="{{.EditApplicationForm.SalaryMin}}" {{if .EditApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="edit-salary-min-error"{{end}}>
           {{with .EditApplicationForm.SalaryMinError}}<small class="form-error" id="edit-salary-min-error">{{.}}</small>{{end}}
         </label>
 
         <label class="form-field">
           <span>Salary maximum <small>Optional</small></span>
-          <input type="number" name="salary_max" min="0" step="1000" inputmode="numeric" value="{{.EditApplicationForm.SalaryMax}}" {{if .EditApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="edit-salary-max-error"{{end}}>
+          <input type="number" name="salary_max" min="0" step="1" inputmode="numeric" value="{{.EditApplicationForm.SalaryMax}}" {{if .EditApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="edit-salary-max-error"{{end}}>
           {{with .EditApplicationForm.SalaryMaxError}}<small class="form-error" id="edit-salary-max-error">{{.}}</small>{{end}}
         </label>
 
