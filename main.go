@@ -60,6 +60,28 @@ type applicationsPageData struct {
 	SelectedApplicationID int64
 }
 
+type organizationsPageData struct {
+	Organizations          []organizationView
+	TotalOrganizations     int
+	TotalApplications      int64
+	OpenApplications       int64
+	WithCareerPortal       int
+	EditOrganizationForm   organizationFormView
+	SelectedOrganizationID int64
+}
+
+type organizationView struct {
+	ID                   int64
+	Name                 string
+	Initial              string
+	Mark                 string
+	CareersURL           string
+	PortalLabel          string
+	ApplicationCount     int64
+	OpenApplicationCount int64
+	UpdatedAt            string
+}
+
 type applicationFilters struct {
 	Status         string
 	Income         string
@@ -152,8 +174,12 @@ type applicationsPageState struct {
 	SelectedApplicationID int64
 }
 
+type organizationsPageState struct {
+	EditOrganizationForm   organizationFormView
+	SelectedOrganizationID int64
+}
+
 type organizationFormView struct {
-	ID              int64
 	Name            string
 	NameError       string
 	CareersURL      string
@@ -208,27 +234,17 @@ func main() {
 	mux.HandleFunc("GET /applications", func(w http.ResponseWriter, r *http.Request) {
 		renderApplications(w, r.Context(), queries, templates, parseApplicationFilters(r.URL.Query()), applicationsPageState{}, http.StatusOK)
 	})
-	mux.HandleFunc("GET /organizations/{id}/edit", func(w http.ResponseWriter, r *http.Request) {
-		organizationID, err := parseOrganizationID(r)
-		if err != nil {
-			http.NotFound(w, r)
-			return
+	mux.HandleFunc("GET /organizations", func(w http.ResponseWriter, r *http.Request) {
+		state := organizationsPageState{}
+		selectedID := r.URL.Query().Get("organization")
+		if savedID := r.URL.Query().Get("saved"); savedID != "" {
+			selectedID = savedID
+			state.EditOrganizationForm.Saved = true
 		}
-
-		organization, err := queries.GetOrganization(r.Context(), organizationID)
-		if err == sql.ErrNoRows {
-			http.NotFound(w, r)
-			return
+		if organizationID, err := strconv.ParseInt(selectedID, 10, 64); err == nil && organizationID > 0 {
+			state.SelectedOrganizationID = organizationID
 		}
-		if err != nil {
-			log.Printf("get organization: %v", err)
-			http.Error(w, "Unable to load organization", http.StatusInternalServerError)
-			return
-		}
-
-		form := newOrganizationFormView(organization)
-		form.Saved = r.URL.Query().Get("saved") == "1"
-		renderOrganizationForm(w, templates, form, http.StatusOK)
+		renderOrganizations(w, r.Context(), queries, templates, state, http.StatusOK)
 	})
 	mux.HandleFunc("POST /organizations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
@@ -244,9 +260,11 @@ func main() {
 
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		form, input := parseOrganizationForm(r)
-		form.ID = organizationID
 		if form.HasErrors {
-			renderOrganizationForm(w, templates, form, http.StatusUnprocessableEntity)
+			renderOrganizations(w, r.Context(), queries, templates, organizationsPageState{
+				EditOrganizationForm:   form,
+				SelectedOrganizationID: organizationID,
+			}, http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -263,7 +281,10 @@ func main() {
 			form.NameError = "An organization with this name already exists."
 			form.GeneralError = "Review the highlighted field and try again."
 			form.HasErrors = true
-			renderOrganizationForm(w, templates, form, http.StatusUnprocessableEntity)
+			renderOrganizations(w, r.Context(), queries, templates, organizationsPageState{
+				EditOrganizationForm:   form,
+				SelectedOrganizationID: organizationID,
+			}, http.StatusUnprocessableEntity)
 			return
 		}
 
@@ -282,7 +303,7 @@ func main() {
 			return
 		}
 
-		http.Redirect(w, r, fmt.Sprintf("/organizations/%d/edit?saved=1", organizationID), http.StatusSeeOther)
+		http.Redirect(w, r, fmt.Sprintf("/organizations?saved=%d", organizationID), http.StatusSeeOther)
 	})
 	mux.HandleFunc("POST /applications", func(w http.ResponseWriter, r *http.Request) {
 		if !isSameOrigin(r) {
@@ -542,11 +563,18 @@ func renderApplications(w http.ResponseWriter, ctx context.Context, queries *dat
 	}
 }
 
-func renderOrganizationForm(w http.ResponseWriter, templates *template.Template, form organizationFormView, status int) {
+func renderOrganizations(w http.ResponseWriter, ctx context.Context, queries *database.Queries, templates *template.Template, state organizationsPageState, status int) {
+	data, err := loadOrganizationsPageData(ctx, queries, state)
+	if err != nil {
+		log.Printf("list organizations page: %v", err)
+		http.Error(w, "Unable to load organizations", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	if err := templates.ExecuteTemplate(w, "organization-edit.html", form); err != nil {
-		log.Printf("render organization form: %v", err)
+	if err := templates.ExecuteTemplate(w, "organizations.html", data); err != nil {
+		log.Printf("render organizations page: %v", err)
 	}
 }
 
@@ -555,15 +583,20 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	if err != nil {
 		return overviewData{}, err
 	}
+	organizations, err := queries.ListOrganizations(ctx)
+	if err != nil {
+		return overviewData{}, err
+	}
 
 	data := overviewData{
 		TotalApplications: len(applications),
+		OrganizationCount: len(organizations),
 	}
-	organizations := make(map[int64]string)
+	for _, organization := range organizations {
+		data.OrganizationNames = append(data.OrganizationNames, organization.Name)
+	}
 	now := time.Now().In(applicationLocation)
 	for _, application := range applications {
-		organizations[application.OrganizationID] = application.OrganizationName
-
 		switch application.Status {
 		case "applied":
 			data.AppliedCount++
@@ -588,12 +621,6 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 			data.PortalApplications = append(data.PortalApplications, newPortalApplicationView(application, now))
 		}
 	}
-	data.OrganizationCount = len(organizations)
-	for _, organizationName := range organizations {
-		data.OrganizationNames = append(data.OrganizationNames, organizationName)
-	}
-	sort.Strings(data.OrganizationNames)
-
 	data.ApplicationSummary = fmt.Sprintf("Showing all %d open applications", data.OpenCount)
 	if data.OpenCount == 1 {
 		data.ApplicationSummary = "Showing 1 open application"
@@ -622,27 +649,28 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 	if err != nil {
 		return applicationsPageData{}, err
 	}
+	organizations, err := queries.ListOrganizations(ctx)
+	if err != nil {
+		return applicationsPageData{}, err
+	}
 
 	data := applicationsPageData{
 		TotalApplications: len(applications),
+		OrganizationCount: len(organizations),
 		Filters:           filters,
 	}
-	organizations := make(map[int64]string)
+	for _, organization := range organizations {
+		data.OrganizationOptions = append(data.OrganizationOptions, organizationFilterOption{
+			ID:   organization.ID,
+			Name: organization.Name,
+		})
+	}
 	now := time.Now().In(applicationLocation)
 	for _, application := range applications {
-		organizations[application.OrganizationID] = application.OrganizationName
 		if applicationMatchesFilters(application, filters) {
 			data.Applications = append(data.Applications, newApplicationView(application, now))
 		}
 	}
-
-	data.OrganizationCount = len(organizations)
-	for id, name := range organizations {
-		data.OrganizationOptions = append(data.OrganizationOptions, organizationFilterOption{ID: id, Name: name})
-	}
-	sort.Slice(data.OrganizationOptions, func(i, j int) bool {
-		return data.OrganizationOptions[i].Name < data.OrganizationOptions[j].Name
-	})
 
 	data.FilteredCount = len(data.Applications)
 	data.FilterSummary = fmt.Sprintf("Showing all %d applications", data.TotalApplications)
@@ -653,6 +681,40 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 		data.FilterSummary = fmt.Sprintf("Showing %d of %d applications", data.FilteredCount, data.TotalApplications)
 	}
 
+	return data, nil
+}
+
+func loadOrganizationsPageData(ctx context.Context, queries *database.Queries, state organizationsPageState) (organizationsPageData, error) {
+	organizations, err := queries.ListOrganizations(ctx)
+	if err != nil {
+		return organizationsPageData{}, err
+	}
+
+	data := organizationsPageData{
+		TotalOrganizations:     len(organizations),
+		EditOrganizationForm:   state.EditOrganizationForm,
+		SelectedOrganizationID: state.SelectedOrganizationID,
+	}
+	foundSelection := false
+	for _, organization := range organizations {
+		view := newOrganizationView(organization)
+		data.Organizations = append(data.Organizations, view)
+		data.TotalApplications += organization.ApplicationCount
+		data.OpenApplications += organization.OpenApplicationCount
+		if view.CareersURL != "" {
+			data.WithCareerPortal++
+		}
+		if organization.ID == state.SelectedOrganizationID {
+			foundSelection = true
+			if !state.EditOrganizationForm.HasErrors {
+				data.EditOrganizationForm.Name = organization.Name
+				data.EditOrganizationForm.CareersURL = view.CareersURL
+			}
+		}
+	}
+	if !foundSelection {
+		data.SelectedOrganizationID = 0
+	}
 	return data, nil
 }
 
@@ -804,11 +866,31 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 	}
 }
 
-func newOrganizationFormView(organization database.Organization) organizationFormView {
-	return organizationFormView{
-		ID:         organization.ID,
-		Name:       organization.Name,
-		CareersURL: nullStringValue(organization.CareersUrl),
+func newOrganizationView(organization database.ListOrganizationsRow) organizationView {
+	careersURL := nullStringValue(organization.CareersUrl)
+	portalLabel := "Not saved"
+	if careersURL != "" {
+		portalLabel = "Portal saved"
+		if parsedURL, err := url.Parse(careersURL); err == nil && parsedURL.Hostname() != "" {
+			portalLabel = strings.TrimPrefix(parsedURL.Hostname(), "www.")
+		}
+	}
+
+	updatedAt := "Recently updated"
+	if parsedTime, err := time.Parse(time.RFC3339Nano, organization.UpdatedAt); err == nil {
+		updatedAt = "Updated " + parsedTime.In(applicationLocation).Format("Jan 2, 2006")
+	}
+
+	return organizationView{
+		ID:                   organization.ID,
+		Name:                 organization.Name,
+		Initial:              organizationInitial(organization.Name),
+		Mark:                 organizationMark(organization.ID),
+		CareersURL:           careersURL,
+		PortalLabel:          portalLabel,
+		ApplicationCount:     organization.ApplicationCount,
+		OpenApplicationCount: organization.OpenApplicationCount,
+		UpdatedAt:            updatedAt,
 	}
 }
 

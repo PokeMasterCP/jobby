@@ -88,8 +88,8 @@ Successful mutations return `303 See Other` and redirect the browser to the rele
 | Method | Path | Purpose | Success response |
 | --- | --- | --- | --- |
 | `GET` | `/` | Render the search overview | `200` HTML |
-| `GET` | `/organizations/{id}/edit` | Render an organization editor | `200` HTML |
-| `POST` | `/organizations/{id}` | Update an organization | `303` to `/organizations/{id}/edit?saved=1` |
+| `GET` | `/organizations` | Render the organization directory and editor dialog | `200` HTML |
+| `POST` | `/organizations/{id}` | Update an organization | `303` to `/organizations?saved={id}` |
 | `POST` | `/applications` | Create an application | `303` to `/` |
 | `POST` | `/applications/{id}` | Replace an application's editable fields | `303` to `/#applications` |
 | `POST` | `/applications/{id}/status` | Change only an application's status | `303` to `/#applications` |
@@ -153,7 +153,7 @@ Changing `status` also updates `status_changed_at`. Submitting the existing stat
 
 ### View and update an organization
 
-`GET /organizations/{id}/edit` renders the organization editor. `POST /organizations/{id}` updates it using the `name` and `careers_url` form fields.
+`GET /organizations` renders the organization directory. Selecting a record opens its editor in a dialog. `POST /organizations/{id}` updates it using the `name` and `careers_url` form fields.
 
 `name` is required and must remain unique without regard to case. `careers_url` is optional and must be a complete HTTP or HTTPS URL when supplied. Sending it as empty, or omitting it, clears the existing URL.
 

@@ -44,6 +44,64 @@
     });
   }
 
+  const organizationDetailDialog = document.querySelector("#organization-detail-dialog");
+  if (organizationDetailDialog) {
+    const organizationForm = organizationDetailDialog.querySelector("[data-organization-edit-form]");
+    const organizationName = organizationDetailDialog.querySelector("[data-organization-detail-name]");
+    const savedMessage = organizationDetailDialog.querySelector("[data-organization-detail-success]");
+
+    const populateOrganization = (organization, showSaved = false) => {
+      organizationName.textContent = organization.organizationName;
+      organizationForm.action = `/organizations/${organization.organizationId}`;
+      organizationForm.elements.namedItem("name").value = organization.organizationName;
+      organizationForm.elements.namedItem("careers_url").value = organization.careersUrl;
+      organizationDetailDialog.querySelector("[data-organization-application-count]").textContent = organization.applicationCount;
+      organizationDetailDialog.querySelector("[data-organization-open-count]").textContent = organization.openApplicationCount;
+      savedMessage.hidden = !showSaved;
+    };
+
+    const openOrganization = (row, showSaved = false) => {
+      populateOrganization(row.dataset, showSaved);
+      organizationDetailDialog.showModal();
+    };
+
+    const organizationRows = Array.from(document.querySelectorAll("[data-open-organization-detail]"));
+    organizationRows.forEach((row) => {
+      row.addEventListener("click", () => {
+        openOrganization(row);
+      });
+    });
+
+    organizationDetailDialog.querySelectorAll("[data-close-organization-detail]").forEach((button) => {
+      button.addEventListener("click", () => {
+        organizationDetailDialog.close();
+      });
+    });
+
+    organizationDetailDialog.addEventListener("click", (event) => {
+      if (event.target === organizationDetailDialog) {
+        organizationDetailDialog.close();
+      }
+    });
+
+    if (organizationDetailDialog.hasAttribute("data-open-on-load")) {
+      const organizationID = organizationDetailDialog.dataset.openOrganizationId;
+      const row = organizationRows.find((candidate) => candidate.dataset.organizationId === organizationID);
+      if (row && !organizationDetailDialog.hasAttribute("data-start-with-errors")) {
+        populateOrganization(row.dataset, organizationDetailDialog.hasAttribute("data-start-saved"));
+      } else {
+        organizationForm.action = `/organizations/${organizationID}`;
+        organizationName.textContent = organizationForm.elements.namedItem("name").value;
+        if (row) {
+          organizationDetailDialog.querySelector("[data-organization-application-count]").textContent = row.dataset.applicationCount;
+          organizationDetailDialog.querySelector("[data-organization-open-count]").textContent = row.dataset.openApplicationCount;
+        }
+      }
+      organizationDetailDialog.showModal();
+      organizationDetailDialog.querySelector('[aria-invalid="true"]')?.focus();
+    }
+  }
+
   const detailDialog = document.querySelector("#application-detail-dialog");
   if (!detailDialog) {
     return;
@@ -118,7 +176,7 @@
     statusSelect.setAttribute("aria-label", `Change status, currently ${application.statusLabel}`);
 
     setResourceLink(careersLink, careersMissing, application.careersUrl);
-    careersMissing.href = `/organizations/${application.organizationId}/edit`;
+    careersMissing.href = `/organizations?organization=${application.organizationId}`;
     setResourceLink(postingLink, postingMissing, application.postingUrl);
 
     setActions(application.applicationId);

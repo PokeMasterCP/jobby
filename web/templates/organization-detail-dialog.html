@@ -1,0 +1,57 @@
+{{define "organization-detail-dialog"}}
+<dialog
+  class="application-dialog organization-detail-dialog"
+  id="organization-detail-dialog"
+  aria-labelledby="organization-detail-title"
+  {{if .SelectedOrganizationID}}data-open-on-load data-open-organization-id="{{.SelectedOrganizationID}}"{{end}}
+  {{if .EditOrganizationForm.HasErrors}}data-start-with-errors{{end}}
+  {{if .EditOrganizationForm.Saved}}data-start-saved{{end}}
+>
+  <section class="application-dialog-card organization-detail-card">
+    <header class="application-dialog-header organization-detail-header">
+      <div>
+        <p class="section-number">06 / Organization record</p>
+        <h2 id="organization-detail-title" data-organization-detail-name>{{.EditOrganizationForm.Name}}</h2>
+      </div>
+      <button class="dialog-close" type="button" aria-label="Close organization editor" data-close-organization-detail>×</button>
+    </header>
+
+    <form class="application-form" method="post" action="/organizations/{{.SelectedOrganizationID}}" data-organization-edit-form>
+      <p class="organization-detail-success" role="status" data-organization-detail-success {{if not .EditOrganizationForm.Saved}}hidden{{end}}>
+        <span aria-hidden="true">✓</span> Organization saved.
+      </p>
+      {{if .EditOrganizationForm.GeneralError}}
+        <p class="application-form-alert" role="alert">{{.EditOrganizationForm.GeneralError}}</p>
+      {{end}}
+      <p class="application-form-intro">Organization details are shared. Changes to the name or career portal appear across every linked application.</p>
+
+      <div class="organization-detail-summary" aria-label="Linked application summary">
+        <p><span>Applications</span><strong data-organization-application-count>0</strong></p>
+        <p><span>Currently open</span><strong data-organization-open-count>0</strong></p>
+      </div>
+
+      <div class="application-form-grid">
+        <label class="form-field form-field-wide">
+          <span>Organization name <small>Required</small></span>
+          <input type="text" name="name" autocomplete="organization" value="{{.EditOrganizationForm.Name}}" required {{if .EditOrganizationForm.NameError}}aria-invalid="true" aria-describedby="organization-name-error"{{end}}>
+          {{with .EditOrganizationForm.NameError}}<small class="form-error" id="organization-name-error">{{.}}</small>{{end}}
+        </label>
+
+        <label class="form-field form-field-wide">
+          <span>Career portal URL <small>Optional</small></span>
+          <input type="url" name="careers_url" inputmode="url" placeholder="Organization's Career Portal link" value="{{.EditOrganizationForm.CareersURL}}" {{if .EditOrganizationForm.CareersURLError}}aria-invalid="true" aria-describedby="organization-careers-url-error"{{end}}>
+          {{with .EditOrganizationForm.CareersURLError}}<small class="form-error" id="organization-careers-url-error">{{.}}</small>{{end}}
+        </label>
+      </div>
+
+      <footer class="application-form-footer">
+        <p>Renaming this organization updates every application attached to it.</p>
+        <div>
+          <button class="form-cancel" type="button" data-close-organization-detail>Cancel</button>
+          <button class="form-submit" type="submit">Save organization</button>
+        </div>
+      </footer>
+    </form>
+  </section>
+</dialog>
+{{end}}
