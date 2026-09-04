@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
-  <title>Jobby — Search overview</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=applications-page">
-  <script src="/static/js/application-form.js?v=applications-page" defer></script>
+  <title>Jobby — Search dashboard</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=dashboard-page">
+  <script src="/static/js/application-form.js?v=dashboard-page" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -14,14 +14,14 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div>
-        <a class="wordmark" href="/" aria-label="Jobby overview">Jobby<span aria-hidden="true">*</span></a>
+        <a class="wordmark" href="/" aria-label="Jobby dashboard">Jobby<span aria-hidden="true">*</span></a>
         <p class="workspace-label">Personal search desk</p>
       </div>
 
       <nav class="primary-nav" aria-label="Primary navigation">
         <a class="active" href="/" aria-current="page">
           <span aria-hidden="true">▦</span>
-          Overview
+          Dashboard
         </a>
         <a href="/applications">
           <span aria-hidden="true">◎</span>
@@ -55,8 +55,8 @@
       <main id="main-content">
         <header class="page-header">
           <div>
-            <p class="eyebrow"><span>01</span> Search overview</p>
-            <h1>Your search,<br><em>at a glance.</em></h1>
+            <p class="eyebrow"><span>01</span> Search dashboard</p>
+            <h1>The search,<br><em>in motion.</em></h1>
           </div>
           <div class="page-actions">
             <p><span aria-hidden="true"></span> All changes saved locally</p>
@@ -66,34 +66,107 @@
           </div>
         </header>
 
-        <section class="metrics" aria-label="Application summary">
+        <section class="metrics dashboard-metrics" aria-label="Search health summary">
           <article class="metric metric-feature">
+            <p>Last 7 days</p>
+            <div><strong>{{.ApplicationsLast7}}</strong><span>{{.ApplicationsLast30}} sent in the last 30 days</span></div>
+          </article>
+          <article class="metric">
             <p>Open applications</p>
-            <div><strong>{{.OpenCount}}</strong><span>{{.PortalCheckSummary}}</span></div>
+            <strong>{{.OpenCount}}</strong>
+            <span>{{.PortalCheckSummary}}</span>
           </article>
           <article class="metric">
-            <p>Applied</p>
-            <strong>{{.AppliedCount}}</strong>
-            <span>Awaiting contact</span>
-          </article>
-          <article class="metric">
-            <p>In contact</p>
-            <strong>{{.InContactCount}}</strong>
-            <span>Conversations active</span>
+            <p>Reached contact</p>
+            <strong>{{.ContactRate}}%</strong>
+            <span>{{.ReachedContactCount}} of {{.TotalApplications}} applications</span>
           </article>
           <article class="metric metric-success">
-            <p>Accepted</p>
-            <strong>{{.AcceptedCount}}</strong>
-            <span>Offers secured</span>
+            <p>Median open age</p>
+            <strong>{{.MedianOpenAge}}</strong>
+            <span>Across {{.OpenCount}} active applications</span>
           </article>
         </section>
+
+        <div class="dashboard-analytics">
+          <section class="panel cadence-panel" aria-labelledby="cadence-title">
+            <header class="analytics-header">
+              <div>
+                <p class="section-number">02 / Momentum</p>
+                <h2 id="cadence-title">Application cadence</h2>
+              </div>
+              <p><strong>{{.ApplicationsLast30}}</strong> last 30 days</p>
+            </header>
+            <div class="cadence-chart" role="img" aria-label="Applications added by week over the last eight weeks">
+              {{range .DashboardWeeks}}
+                <div class="cadence-column{{if .IsCurrent}} is-current{{end}}" aria-label="{{.Label}}: {{.Count}} applications">
+                  <span class="cadence-count">{{.Count}}</span>
+                  <span class="cadence-track" aria-hidden="true"><i style="--bar-height: {{.Height}}%"></i></span>
+                  <span class="cadence-label">{{.Label}}</span>
+                </div>
+              {{end}}
+            </div>
+            <footer class="analytics-note"><span>Applied date, or date added</span><span>Last 8 weeks</span></footer>
+          </section>
+
+          <section class="panel conversion-panel" aria-labelledby="conversion-title">
+            <header class="analytics-header compact">
+              <div>
+                <p class="section-number">03 / Conversion</p>
+                <h2 id="conversion-title">Response signal</h2>
+              </div>
+              <span class="analytics-stamp">{{.TotalApplications}} total</span>
+            </header>
+            <div class="conversion-lead">
+              <p>Reached contact</p>
+              <strong>{{.ContactRate}}%</strong>
+              <span>Current outcomes that indicate a conversation</span>
+            </div>
+            <dl class="conversion-stats">
+              <div><dt>Offer rate</dt><dd>{{.OfferRate}}%</dd><small>of closed applications</small></div>
+              <div><dt>No-contact close</dt><dd>{{.NoResponseRate}}%</dd><small>of closed applications</small></div>
+            </dl>
+            <div class="outcome-bar" aria-hidden="true">
+              <span class="bar-open" style="--share: {{.OpenCount}}"></span><span class="bar-accepted" style="--share: {{.AcceptedCount}}"></span><span class="bar-contact" style="--share: {{.RejectedAfterContactCount}}"></span><span class="bar-no-contact" style="--share: {{.RejectedNoContactCount}}"></span>
+            </div>
+            <ul class="outcome-key" aria-label="Application outcomes">
+              <li><span class="key key-ink"></span>Open {{.OpenCount}}</li>
+              <li><span class="key key-orange"></span>Accepted {{.AcceptedCount}}</li>
+              <li><span class="key key-blue"></span>Closed after contact {{.RejectedAfterContactCount}}</li>
+              <li><span class="key key-paper"></span>Closed, no contact {{.RejectedNoContactCount}}</li>
+            </ul>
+          </section>
+
+          <section class="panel profile-panel" aria-labelledby="profile-title">
+            <header class="analytics-header compact">
+              <div>
+                <p class="section-number">04 / Opportunity mix</p>
+                <h2 id="profile-title">Search profile</h2>
+              </div>
+            </header>
+            <div class="salary-snapshot">
+              <p>Median salary midpoint</p>
+              <strong>{{.MedianOpenSalary}}</strong>
+              <span>Midpoint across open applications with salary data</span>
+            </div>
+            <div class="coverage-row">
+              <span>Salary coverage</span>
+              <strong>{{.SalaryCoverage}}%</strong>
+            </div>
+            <div class="coverage-track" aria-label="{{.SalaryCoverage}} percent of applications include salary data"><i style="--coverage: {{.SalaryCoverage}}%"></i></div>
+            <div class="location-mix">
+              <div><span>Remote</span><strong>{{.RemoteCount}}</strong><small>{{.RemotePercent}}%</small></div>
+              <div><span>Local</span><strong>{{.LocalCount}}</strong><small>{{.LocalPercent}}%</small></div>
+            </div>
+          </section>
+        </div>
 
         <div class="dashboard-grid">
           <section class="panel applications-panel" id="applications" aria-labelledby="applications-title">
             <header class="panel-header">
               <div>
-                <p class="section-number">02 / Active ledger</p>
-                <h2 id="applications-title">Applications</h2>
+                <p class="section-number">05 / Active ledger</p>
+                <h2 id="applications-title">Recently active</h2>
               </div>
               <a class="quiet-button" href="/applications">View all <span aria-hidden="true">→</span></a>
             </header>
@@ -186,7 +259,7 @@
           <aside class="side-stack">
             <section class="panel portal-panel" aria-labelledby="portal-title">
               <header>
-                <p class="section-number">03 / Manual round</p>
+                <p class="section-number">06 / Manual round</p>
                 <span class="asterisk" aria-hidden="true">*</span>
               </header>
               <h2 id="portal-title">{{.PortalHeadingCount}}<br>{{.PortalHeadingAction}}</h2>
@@ -205,36 +278,6 @@
               {{end}}
             </section>
 
-            <section class="panel outcome-panel" id="organizations" aria-labelledby="outcome-title">
-              <header class="small-panel-header">
-                <div>
-                  <p class="section-number">04 / Outcomes</p>
-                  <h2 id="outcome-title">The full picture</h2>
-                </div>
-                <span>{{.TotalApplications}} total</span>
-              </header>
-              <dl class="outcome-list">
-                <div>
-                  <dt><span class="key key-ink"></span> Open</dt>
-                  <dd>{{.OpenCount}}</dd>
-                </div>
-                <div>
-                  <dt><span class="key key-orange"></span> Accepted</dt>
-                  <dd>{{.AcceptedCount}}</dd>
-                </div>
-                <div>
-                  <dt><span class="key key-blue"></span> Rejected after contact</dt>
-                  <dd>{{.RejectedAfterContactCount}}</dd>
-                </div>
-                <div>
-                  <dt><span class="key key-paper"></span> Rejected, no contact</dt>
-                  <dd>{{.RejectedNoContactCount}}</dd>
-                </div>
-              </dl>
-              <div class="outcome-bar" aria-hidden="true">
-                <span class="bar-open" style="--share: {{.OpenCount}}"></span><span class="bar-accepted" style="--share: {{.AcceptedCount}}"></span><span class="bar-contact" style="--share: {{.RejectedAfterContactCount}}"></span><span class="bar-no-contact" style="--share: {{.RejectedNoContactCount}}"></span>
-              </div>
-            </section>
           </aside>
         </div>
       </main>
@@ -245,7 +288,7 @@
     <section class="application-dialog-card">
       <header class="application-dialog-header">
         <div>
-          <p class="section-number">05 / New record</p>
+          <p class="section-number">07 / New record</p>
           <h2 id="application-dialog-title">Add an application</h2>
         </div>
         <button class="dialog-close" type="button" aria-label="Close application form" data-close-application-dialog>×</button>

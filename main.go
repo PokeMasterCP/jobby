@@ -30,6 +30,7 @@ type overviewData struct {
 	Applications              []applicationView
 	PortalApplications        []portalApplicationView
 	OrganizationNames         []string
+	DashboardWeeks            []dashboardWeekView
 	ApplicationSummary        string
 	PortalHeadingCount        string
 	PortalHeadingAction       string
@@ -43,9 +44,31 @@ type overviewData struct {
 	AcceptedCount             int
 	RejectedAfterContactCount int
 	RejectedNoContactCount    int
+	ApplicationsLast7         int
+	ApplicationsLast30        int
+	ReachedContactCount       int
+	ContactRate               int
+	ClosedCount               int
+	OfferRate                 int
+	NoResponseRate            int
+	MedianOpenAge             string
+	SalaryListedCount         int
+	SalaryCoverage            int
+	MedianOpenSalary          string
+	RemoteCount               int
+	LocalCount                int
+	RemotePercent             int
+	LocalPercent              int
 	ApplicationForm           applicationFormView
 	EditApplicationForm       applicationFormView
 	SelectedApplicationID     int64
+}
+
+type dashboardWeekView struct {
+	Label     string
+	Count     int
+	Height    int
+	IsCurrent bool
 }
 
 type applicationsPageData struct {
@@ -591,12 +614,62 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	data := overviewData{
 		TotalApplications: len(applications),
 		OrganizationCount: len(organizations),
+		DashboardWeeks:    make([]dashboardWeekView, 8),
+		MedianOpenAge:     "—",
+		MedianOpenSalary:  "—",
 	}
 	for _, organization := range organizations {
 		data.OrganizationNames = append(data.OrganizationNames, organization.Name)
 	}
+
 	now := time.Now().In(applicationLocation)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, applicationLocation)
+	weekStart := today.AddDate(0, 0, -(int(today.Weekday())+6)%7)
+	firstWeekStart := weekStart.AddDate(0, 0, -49)
+	weekCounts := make([]int, len(data.DashboardWeeks))
+	openAges := make([]int, 0, len(applications))
+	openSalaryMidpoints := make([]int64, 0, len(applications))
+
+	for index := range data.DashboardWeeks {
+		label := firstWeekStart.AddDate(0, 0, index*7).Format("Jan 2")
+		if index == len(data.DashboardWeeks)-1 {
+			label = "This week"
+		}
+		data.DashboardWeeks[index] = dashboardWeekView{
+			Label:     label,
+			IsCurrent: index == len(data.DashboardWeeks)-1,
+		}
+	}
+
 	for _, application := range applications {
+		activityDate, hasActivityDate := applicationActivityDate(application)
+		if hasActivityDate {
+			activityDay := time.Date(activityDate.Year(), activityDate.Month(), activityDate.Day(), 0, 0, 0, 0, applicationLocation)
+			if !activityDay.After(today) {
+				if !activityDay.Before(today.AddDate(0, 0, -6)) {
+					data.ApplicationsLast7++
+				}
+				if !activityDay.Before(today.AddDate(0, 0, -29)) {
+					data.ApplicationsLast30++
+				}
+			}
+			if !activityDay.Before(firstWeekStart) && activityDay.Before(weekStart.AddDate(0, 0, 7)) {
+				weekIndex := calendarDaysBetween(firstWeekStart, activityDay) / 7
+				if weekIndex >= 0 && weekIndex < len(weekCounts) {
+					weekCounts[weekIndex]++
+				}
+			}
+		}
+
+		if application.SalaryMin.Valid && application.SalaryMax.Valid {
+			data.SalaryListedCount++
+		}
+		if application.WorkLocation == "remote" {
+			data.RemoteCount++
+		} else {
+			data.LocalCount++
+		}
+
 		switch application.Status {
 		case "applied":
 			data.AppliedCount++
@@ -615,18 +688,60 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		}
 
 		data.OpenCount++
+		if hasActivityDate && !activityDate.After(now) {
+			openAges = append(openAges, calendarDaysBetween(activityDate, now))
+		}
+		if application.SalaryMin.Valid && application.SalaryMax.Valid {
+			openSalaryMidpoints = append(openSalaryMidpoints, (application.SalaryMin.Int64+application.SalaryMax.Int64)/2)
+		}
 		applicationView := newApplicationView(application, now)
 		data.Applications = append(data.Applications, applicationView)
 		if applicationView.LastCheckedIsDue {
 			data.PortalApplications = append(data.PortalApplications, newPortalApplicationView(application, now))
 		}
 	}
+
+	data.ReachedContactCount = data.InContactCount + data.AcceptedCount + data.RejectedAfterContactCount
+	data.ContactRate = roundedPercentage(data.ReachedContactCount, data.TotalApplications)
+	data.ClosedCount = data.AcceptedCount + data.RejectedAfterContactCount + data.RejectedNoContactCount
+	data.OfferRate = roundedPercentage(data.AcceptedCount, data.ClosedCount)
+	data.NoResponseRate = roundedPercentage(data.RejectedNoContactCount, data.ClosedCount)
+	data.SalaryCoverage = roundedPercentage(data.SalaryListedCount, data.TotalApplications)
+	data.RemotePercent = roundedPercentage(data.RemoteCount, data.TotalApplications)
+	data.LocalPercent = roundedPercentage(data.LocalCount, data.TotalApplications)
+
+	if len(openAges) > 0 {
+		sort.Ints(openAges)
+		data.MedianOpenAge = fmt.Sprintf("%dd", medianInt(openAges))
+	}
+	if len(openSalaryMidpoints) > 0 {
+		sort.Slice(openSalaryMidpoints, func(i, j int) bool {
+			return openSalaryMidpoints[i] < openSalaryMidpoints[j]
+		})
+		data.MedianOpenSalary = compactSalary(medianInt64(openSalaryMidpoints))
+	}
+
+	maxWeekCount := 0
+	for _, count := range weekCounts {
+		if count > maxWeekCount {
+			maxWeekCount = count
+		}
+	}
+	for index, count := range weekCounts {
+		height := 0
+		if maxWeekCount > 0 && count > 0 {
+			height = max(12, count*100/maxWeekCount)
+		}
+		data.DashboardWeeks[index].Count = count
+		data.DashboardWeeks[index].Height = height
+	}
+
 	data.ApplicationSummary = fmt.Sprintf("Showing all %d open applications", data.OpenCount)
 	if data.OpenCount == 1 {
 		data.ApplicationSummary = "Showing 1 open application"
-	} else if len(data.Applications) > 10 {
-		data.ApplicationSummary = fmt.Sprintf("Showing 10 most recent of %d open applications", data.OpenCount)
-		data.Applications = data.Applications[:10]
+	} else if len(data.Applications) > 5 {
+		data.ApplicationSummary = fmt.Sprintf("Showing 5 most recent of %d open applications", data.OpenCount)
+		data.Applications = data.Applications[:5]
 	}
 
 	sort.Slice(data.PortalApplications, func(i, j int) bool {
@@ -642,6 +757,43 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	}
 
 	return data, nil
+}
+
+func applicationActivityDate(application database.ListApplicationsRow) (time.Time, bool) {
+	if application.AppliedAt.Valid {
+		if appliedAt, err := time.ParseInLocation("2006-01-02", application.AppliedAt.String, applicationLocation); err == nil {
+			return appliedAt, true
+		}
+	}
+
+	createdAt, err := time.Parse(time.RFC3339Nano, application.CreatedAt)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return createdAt.In(applicationLocation), true
+}
+
+func roundedPercentage(part int, total int) int {
+	if total == 0 {
+		return 0
+	}
+	return (part*100 + total/2) / total
+}
+
+func medianInt(values []int) int {
+	middle := len(values) / 2
+	if len(values)%2 == 1 {
+		return values[middle]
+	}
+	return (values[middle-1] + values[middle]) / 2
+}
+
+func medianInt64(values []int64) int64 {
+	middle := len(values) / 2
+	if len(values)%2 == 1 {
+		return values[middle]
+	}
+	return (values[middle-1] + values[middle]) / 2
 }
 
 func loadApplicationsPageData(ctx context.Context, queries *database.Queries, filters applicationFilters) (applicationsPageData, error) {
