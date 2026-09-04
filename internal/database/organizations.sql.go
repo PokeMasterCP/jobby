@@ -46,28 +46,64 @@ func (q *Queries) GetOrCreateOrganization(ctx context.Context, arg GetOrCreateOr
 	return i, err
 }
 
-const getOrganization = `-- name: GetOrganization :one
+const listOrganizations = `-- name: ListOrganizations :many
 SELECT
-    id,
-    name,
-    careers_url,
-    created_at,
-    updated_at
+    organizations.id,
+    organizations.name,
+    organizations.careers_url,
+    organizations.updated_at,
+    (
+        SELECT COUNT(*)
+        FROM applications
+        WHERE applications.organization_id = organizations.id
+    ) AS application_count,
+    (
+        SELECT COUNT(*)
+        FROM applications
+        WHERE applications.organization_id = organizations.id
+            AND applications.status IN ('applied', 'in_contact')
+    ) AS open_application_count
 FROM organizations
-WHERE id = ?
+ORDER BY organizations.name COLLATE NOCASE, organizations.id
 `
 
-func (q *Queries) GetOrganization(ctx context.Context, id int64) (Organization, error) {
-	row := q.db.QueryRowContext(ctx, getOrganization, id)
-	var i Organization
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.CareersUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+type ListOrganizationsRow struct {
+	ID                   int64
+	Name                 string
+	CareersUrl           sql.NullString
+	UpdatedAt            string
+	ApplicationCount     int64
+	OpenApplicationCount int64
+}
+
+func (q *Queries) ListOrganizations(ctx context.Context) ([]ListOrganizationsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listOrganizations)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrganizationsRow
+	for rows.Next() {
+		var i ListOrganizationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CareersUrl,
+			&i.UpdatedAt,
+			&i.ApplicationCount,
+			&i.OpenApplicationCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const organizationNameInUse = `-- name: OrganizationNameInUse :one

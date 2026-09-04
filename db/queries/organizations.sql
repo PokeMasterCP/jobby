@@ -15,15 +15,25 @@ RETURNING
     created_at,
     updated_at;
 
--- name: GetOrganization :one
+-- name: ListOrganizations :many
 SELECT
-    id,
-    name,
-    careers_url,
-    created_at,
-    updated_at
+    organizations.id,
+    organizations.name,
+    organizations.careers_url,
+    organizations.updated_at,
+    (
+        SELECT COUNT(*)
+        FROM applications
+        WHERE applications.organization_id = organizations.id
+    ) AS application_count,
+    (
+        SELECT COUNT(*)
+        FROM applications
+        WHERE applications.organization_id = organizations.id
+            AND applications.status IN ('applied', 'in_contact')
+    ) AS open_application_count
 FROM organizations
-WHERE id = ?;
+ORDER BY organizations.name COLLATE NOCASE, organizations.id;
 
 -- name: OrganizationNameInUse :one
 SELECT COUNT(*)
