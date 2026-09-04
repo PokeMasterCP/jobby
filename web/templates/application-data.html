@@ -1,0 +1,21 @@
+{{define "application-data"}}
+data-open-application-summary
+data-application-id="{{.ID}}"
+data-organization-id="{{.OrganizationID}}"
+data-organization-name="{{.OrganizationName}}"
+data-role-title="{{.RoleTitle}}"
+data-status="{{.Status}}"
+data-status-label="{{.StatusLabel}}"
+data-status-class="{{.StatusClass}}"
+data-salary="{{.Salary}}"
+data-salary-min="{{.SalaryMin}}"
+data-salary-max="{{.SalaryMax}}"
+data-work-location="{{.WorkLocation}}"
+data-location="{{.Location}}"
+data-careers-url="{{.CareersURL}}"
+data-posting-url="{{.PostingURL}}"
+data-applied-at="{{.AppliedAt}}"
+data-applied-at-display="{{.AppliedAtDisplay}}"
+data-last-checked="{{.LastChecked}}{{with .LastCheckedDetail}} · {{.}}{{end}}"
+data-notes="{{.Notes}}"
+{{end}}

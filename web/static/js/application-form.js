@@ -3,7 +3,7 @@
     const organizationField = form?.elements.namedItem("organization_name");
     const careersURLField = form?.elements.namedItem("careers_url");
     if (!organizationField || !careersURLField) {
-      return () => {};
+      return;
     }
 
     const updatePlaceholder = () => {
@@ -13,7 +13,14 @@
 
     organizationField.addEventListener("input", updatePlaceholder);
     updatePlaceholder();
-    return updatePlaceholder;
+  };
+
+  const clearFormErrors = (form) => {
+    form.querySelectorAll(".application-form-alert, .form-error").forEach((error) => error.remove());
+    form.querySelectorAll('[aria-invalid="true"]').forEach((field) => {
+      field.removeAttribute("aria-invalid");
+      field.removeAttribute("aria-describedby");
+    });
   };
 
   const createDialog = document.querySelector("#application-dialog");
@@ -61,6 +68,7 @@
     };
 
     const openOrganization = (row, showSaved = false) => {
+      clearFormErrors(organizationForm);
       populateOrganization(row.dataset, showSaved);
       organizationDetailDialog.showModal();
     };
@@ -204,11 +212,13 @@
     kicker.textContent = "05 / Edit record";
     summary.hidden = true;
     editForm.hidden = false;
-    editForm.querySelector('[aria-invalid="true"]')?.focus() ||
-      editForm.elements.namedItem("organization_name")?.focus();
+    const focusField = editForm.querySelector('[aria-invalid="true"]') ||
+      editForm.elements.namedItem("organization_name");
+    focusField?.focus();
   };
 
   const openApplication = (row) => {
+    clearFormErrors(editForm);
     populateSummary(row.dataset);
     populateEditForm(row.dataset);
     showSummary();
@@ -219,16 +229,6 @@
   applicationRows.forEach((row) => {
     row.addEventListener("click", () => {
       openApplication(row);
-    });
-  });
-
-  document.querySelectorAll("[data-open-application-reference]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const applicationID = button.dataset.openApplicationReference;
-      const row = applicationRows.find((candidate) => candidate.dataset.applicationId === applicationID);
-      if (row) {
-        openApplication(row);
-      }
     });
   });
 
@@ -260,7 +260,7 @@
     } else {
       setActions(applicationID);
     }
-    showEditForm();
     detailDialog.showModal();
+    showEditForm();
   }
 })();

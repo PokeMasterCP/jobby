@@ -187,25 +187,7 @@
                       class="application-row"
                       type="button"
                       aria-haspopup="dialog"
-                      data-open-application-summary
-                      data-application-id="{{.ID}}"
-                      data-organization-id="{{.OrganizationID}}"
-                      data-organization-name="{{.OrganizationName}}"
-                      data-role-title="{{.RoleTitle}}"
-                      data-status="{{.Status}}"
-                      data-status-label="{{.StatusLabel}}"
-                      data-status-class="{{.StatusClass}}"
-                      data-salary="{{.Salary}}"
-                      data-salary-min="{{.SalaryMin}}"
-                      data-salary-max="{{.SalaryMax}}"
-                      data-work-location="{{.WorkLocation}}"
-                      data-location="{{.Location}}"
-                      data-careers-url="{{.CareersURL}}"
-                      data-posting-url="{{.PostingURL}}"
-                      data-applied-at="{{.AppliedAt}}"
-                      data-applied-at-display="{{.AppliedAtDisplay}}"
-                      data-last-checked="{{.LastChecked}}{{with .LastCheckedDetail}} · {{.}}{{end}}"
-                      data-notes="{{.Notes}}"
+                      {{template "application-data" .}}
                     >
                       <span class="application-identity">
                         <span class="org-mark {{.OrganizationMark}}">{{.OrganizationInitial}}</span>
@@ -268,8 +250,8 @@
                 <ul>
                   {{range .PortalApplications}}
                     <li>
-                      <button type="button" data-open-application-reference="{{.ID}}">
-                        <span>{{.OrganizationName}}</span><strong>{{.LastChecked}}</strong>
+                      <button type="button" {{template "application-data" .Application}}>
+                        <span>{{.Application.OrganizationName}}</span><strong>{{.CheckAge}}</strong>
                       </button>
                     </li>
                   {{end}}
