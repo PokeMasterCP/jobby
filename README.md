@@ -38,7 +38,7 @@ Run it with a persistent local data directory:
 mkdir -p data
 docker run --rm \
   --name jobby \
-  -p 8080:8080 \
+  -p 127.0.0.1:8080:8080 \
   -v "$PWD/data:/data" \
   -w /data \
   jobby
@@ -88,6 +88,7 @@ Successful mutations return `303 See Other` and redirect the browser to the rele
 | Method | Path | Purpose | Success response |
 | --- | --- | --- | --- |
 | `GET` | `/` | Render the search overview | `200` HTML |
+| `GET` | `/applications` | Render all applications with optional status, income, and organization filters | `200` HTML |
 | `GET` | `/organizations` | Render the organization directory and editor dialog | `200` HTML |
 | `POST` | `/organizations/{id}` | Update an organization | `303` to `/organizations?saved={id}` |
 | `POST` | `/applications` | Create an application | `303` to `/` |
@@ -125,7 +126,7 @@ Allowed application statuses are:
 | `rejected_after_contact` | Rejected after communication or interviews |
 | `rejected_no_contact` | Rejected without direct contact |
 
-Only `applied` and `in_contact` applications appear in the active ledger.
+The dashboard shows the five most recent `applied` and `in_contact` applications. The applications page includes all statuses.
 
 ### Create an application
 
@@ -134,6 +135,8 @@ Only `applied` and `in_contact` applications appear in the active ledger.
 ### Update an application
 
 `POST /applications/{id}` is a full form update. Include every required field and every optional value that should remain on the record. Sending an optional field as empty, or omitting it, clears that value.
+
+The editor preserves application-page filters when saving, including after a validation error.
 
 Career-portal URLs belong to organizations and must be changed through the organization endpoint rather than this request.
 

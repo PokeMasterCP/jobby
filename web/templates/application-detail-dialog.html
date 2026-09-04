@@ -3,7 +3,7 @@
   class="application-dialog application-detail-dialog"
   id="application-detail-dialog"
   aria-labelledby="application-detail-title"
-  {{if .EditApplicationForm.HasErrors}}data-open-on-load data-start-editing data-open-application-id="{{.SelectedApplicationID}}"{{end}}
+  {{if .EditApplicationForm.HasErrors}}data-open-on-load data-open-application-id="{{.SelectedApplicationID}}"{{end}}
 >
   <section class="application-dialog-card">
     <header class="application-dialog-header application-detail-header">
@@ -86,6 +86,7 @@
     </section>
 
     <form class="application-form" method="post" data-application-edit-form hidden>
+      <input type="hidden" name="return_to" value="{{.ReturnPath}}">
       {{if .EditApplicationForm.GeneralError}}
         <p class="application-form-alert" role="alert">{{.EditApplicationForm.GeneralError}}</p>
       {{end}}

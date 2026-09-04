@@ -27,6 +27,7 @@ var appFS embed.FS
 var applicationLocation = mustLoadLocation("America/Chicago")
 
 type overviewData struct {
+	ReturnPath                string
 	Applications              []applicationView
 	PortalApplications        []portalApplicationView
 	OrganizationNames         []string
@@ -72,6 +73,7 @@ type dashboardWeekView struct {
 }
 
 type applicationsPageData struct {
+	ReturnPath            string
 	Applications          []applicationView
 	OrganizationOptions   []organizationFilterOption
 	TotalApplications     int
@@ -143,10 +145,9 @@ type applicationView struct {
 }
 
 type portalApplicationView struct {
-	ID               int64
-	OrganizationName string
-	LastChecked      string
-	daysSinceCheck   int
+	Application    applicationView
+	CheckAge       string
+	daysSinceCheck int
 }
 
 type applicationFormView struct {
@@ -275,7 +276,7 @@ func main() {
 			return
 		}
 
-		organizationID, err := parseOrganizationID(r)
+		organizationID, err := parseRecordID(r)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -390,7 +391,7 @@ func main() {
 			return
 		}
 
-		applicationID, err := parseApplicationID(r)
+		applicationID, err := parseRecordID(r)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -399,7 +400,7 @@ func main() {
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		form, input := parseApplicationForm(r, true)
 		if form.HasErrors {
-			if referer, ok := applicationsPageReferer(r); ok {
+			if referer, ok := applicationsReturnURL(r); ok {
 				renderApplications(w, r.Context(), queries, templates, parseApplicationFilters(referer.Query()), applicationsPageState{
 					EditApplicationForm:   form,
 					SelectedApplicationID: applicationID,
@@ -468,14 +469,18 @@ func main() {
 			return
 		}
 
-		applicationID, err := parseApplicationID(r)
+		applicationID, err := parseRecordID(r)
 		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
 
 		r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
-		status := strings.TrimSpace(r.FormValue("status"))
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "The form could not be read. Please try again.", http.StatusUnprocessableEntity)
+			return
+		}
+		status := strings.TrimSpace(r.PostForm.Get("status"))
 		if !isApplicationStatus(status) {
 			http.Error(w, "Choose a valid status.", http.StatusUnprocessableEntity)
 			return
@@ -503,7 +508,7 @@ func main() {
 			return
 		}
 
-		applicationID, err := parseApplicationID(r)
+		applicationID, err := parseRecordID(r)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -526,7 +531,7 @@ func main() {
 			return
 		}
 
-		applicationID, err := parseApplicationID(r)
+		applicationID, err := parseRecordID(r)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -612,6 +617,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	}
 
 	data := overviewData{
+		ReturnPath:        "/#applications",
 		TotalApplications: len(applications),
 		OrganizationCount: len(organizations),
 		DashboardWeeks:    make([]dashboardWeekView, 8),
@@ -653,7 +659,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 					data.ApplicationsLast30++
 				}
 			}
-			if !activityDay.Before(firstWeekStart) && activityDay.Before(weekStart.AddDate(0, 0, 7)) {
+			if !activityDay.Before(firstWeekStart) && !activityDay.After(today) {
 				weekIndex := calendarDaysBetween(firstWeekStart, activityDay) / 7
 				if weekIndex >= 0 && weekIndex < len(weekCounts) {
 					weekCounts[weekIndex]++
@@ -692,12 +698,12 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 			openAges = append(openAges, calendarDaysBetween(activityDate, now))
 		}
 		if application.SalaryMin.Valid && application.SalaryMax.Valid {
-			openSalaryMidpoints = append(openSalaryMidpoints, (application.SalaryMin.Int64+application.SalaryMax.Int64)/2)
+			openSalaryMidpoints = append(openSalaryMidpoints, application.SalaryMin.Int64+(application.SalaryMax.Int64-application.SalaryMin.Int64)/2)
 		}
 		applicationView := newApplicationView(application, now)
 		data.Applications = append(data.Applications, applicationView)
 		if applicationView.LastCheckedIsDue {
-			data.PortalApplications = append(data.PortalApplications, newPortalApplicationView(application, now))
+			data.PortalApplications = append(data.PortalApplications, newPortalApplicationView(application, applicationView, now))
 		}
 	}
 
@@ -785,7 +791,7 @@ func medianInt(values []int) int {
 	if len(values)%2 == 1 {
 		return values[middle]
 	}
-	return (values[middle-1] + values[middle]) / 2
+	return values[middle-1] + (values[middle]-values[middle-1])/2
 }
 
 func medianInt64(values []int64) int64 {
@@ -793,7 +799,7 @@ func medianInt64(values []int64) int64 {
 	if len(values)%2 == 1 {
 		return values[middle]
 	}
-	return (values[middle-1] + values[middle]) / 2
+	return values[middle-1] + (values[middle]-values[middle-1])/2
 }
 
 func loadApplicationsPageData(ctx context.Context, queries *database.Queries, filters applicationFilters) (applicationsPageData, error) {
@@ -806,7 +812,19 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 		return applicationsPageData{}, err
 	}
 
+	returnQuery := url.Values{}
+	if filters.Status != "" {
+		returnQuery.Set("status", filters.Status)
+	}
+	if filters.Income != "" {
+		returnQuery.Set("income", filters.Income)
+	}
+	if filters.OrganizationID != 0 {
+		returnQuery.Set("organization", strconv.FormatInt(filters.OrganizationID, 10))
+	}
+	returnURL := url.URL{Path: "/applications", RawQuery: returnQuery.Encode()}
 	data := applicationsPageData{
+		ReturnPath:        returnURL.RequestURI(),
 		TotalApplications: len(applications),
 		OrganizationCount: len(organizations),
 		Filters:           filters,
@@ -912,8 +930,12 @@ func applicationMatchesFilters(application database.ListApplicationsRow, filters
 	return true
 }
 
-func applicationsPageReferer(r *http.Request) (*url.URL, bool) {
-	referer, err := url.Parse(r.Referer())
+func applicationsReturnURL(r *http.Request) (*url.URL, bool) {
+	source := r.PostForm.Get("return_to")
+	if source == "" {
+		source = r.Referer()
+	}
+	referer, err := url.Parse(source)
 	if err != nil || referer.Path != "/applications" {
 		return nil, false
 	}
@@ -921,7 +943,7 @@ func applicationsPageReferer(r *http.Request) (*url.URL, bool) {
 }
 
 func applicationMutationReturnPath(r *http.Request) string {
-	if referer, ok := applicationsPageReferer(r); ok {
+	if referer, ok := applicationsReturnURL(r); ok {
 		return referer.RequestURI()
 	}
 	return "/#applications"
@@ -1112,20 +1134,12 @@ func mustLoadLocation(name string) *time.Location {
 	return location
 }
 
-func parseApplicationID(r *http.Request) (int64, error) {
-	applicationID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || applicationID < 1 {
-		return 0, fmt.Errorf("invalid application id")
+func parseRecordID(r *http.Request) (int64, error) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id < 1 {
+		return 0, fmt.Errorf("invalid record id")
 	}
-	return applicationID, nil
-}
-
-func parseOrganizationID(r *http.Request) (int64, error) {
-	organizationID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || organizationID < 1 {
-		return 0, fmt.Errorf("invalid organization id")
-	}
-	return organizationID, nil
+	return id, nil
 }
 
 func isSameOrigin(r *http.Request) bool {
@@ -1177,23 +1191,21 @@ func newApplicationView(application database.ListApplicationsRow, now time.Time)
 	}
 }
 
-func newPortalApplicationView(application database.ListApplicationsRow, now time.Time) portalApplicationView {
+func newPortalApplicationView(application database.ListApplicationsRow, view applicationView, now time.Time) portalApplicationView {
 	if !application.LastCheckedAt.Valid {
 		return portalApplicationView{
-			ID:               application.ID,
-			OrganizationName: application.OrganizationName,
-			LastChecked:      "Never",
-			daysSinceCheck:   int(^uint(0) >> 1),
+			Application:    view,
+			CheckAge:       "Never",
+			daysSinceCheck: int(^uint(0) >> 1),
 		}
 	}
 
 	checkedAt, _ := time.Parse(time.RFC3339Nano, application.LastCheckedAt.String)
 	daysSinceCheck := calendarDaysBetween(checkedAt.In(now.Location()), now)
 	return portalApplicationView{
-		ID:               application.ID,
-		OrganizationName: application.OrganizationName,
-		LastChecked:      fmt.Sprintf("%dd", daysSinceCheck),
-		daysSinceCheck:   daysSinceCheck,
+		Application:    view,
+		CheckAge:       fmt.Sprintf("%dd", daysSinceCheck),
+		daysSinceCheck: daysSinceCheck,
 	}
 }
 
