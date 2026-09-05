@@ -1,0 +1,35 @@
+{{define "settings-dialog"}}
+<dialog class="application-dialog settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+  <section class="application-dialog-card">
+    <header class="application-dialog-header">
+      <h2 id="settings-title">Settings</h2>
+      <button class="dialog-close" type="button" data-close-settings aria-label="Close settings">×</button>
+    </header>
+    <form class="application-form" method="post" action="/settings" data-settings-form>
+      <p class="application-form-alert" role="alert" data-settings-error hidden></p>
+      <div class="application-form-grid">
+        <label class="form-field form-field-wide">
+          <span>Your name <small>Optional</small></span>
+          <input name="name" autocomplete="given-name" maxlength="100" value="{{.Name}}">
+        </label>
+        <label class="form-field form-field-wide">
+          <span>Check portals every (days)</span>
+          <input name="portal_check_days" type="number" min="1" max="365" step="1" required value="{{.PortalCheckDays}}" aria-describedby="portal-interval-help">
+        </label>
+        <p id="portal-interval-help" class="application-form-intro form-field-wide">Open applications become due this many calendar days after their last portal check. Choose 1 for daily checks. Applications never checked are always due.</p>
+        <label class="salary-privacy-toggle form-field-wide">
+          <span>Hide salaries <small>Applies immediately in this browser.</small></span>
+          <input type="checkbox" role="switch" data-salary-privacy aria-label="Hide salaries">
+        </label>
+      </div>
+      <footer class="application-form-footer">
+        <p>Applies to all your applications.</p>
+        <div>
+          <button class="form-cancel" type="button" data-close-settings>Cancel</button>
+          <button class="form-submit" type="submit">Save settings</button>
+        </div>
+      </footer>
+    </form>
+  </section>
+</dialog>
+{{end}}

@@ -8,7 +8,7 @@
   <section class="application-dialog-card">
     <header class="application-dialog-header application-detail-header">
       <div>
-        <p class="section-number" data-detail-kicker>05 / Application brief</p>
+        <p class="section-number" data-detail-kicker>Application details</p>
         <h2 id="application-detail-title" data-detail-organization>{{.EditApplicationForm.OrganizationName}}</h2>
       </div>
       <button class="dialog-close" type="button" aria-label="Close application details" data-close-application-detail>×</button>
@@ -34,7 +34,7 @@
       <dl class="application-summary-grid">
         <div>
           <dt>Salary</dt>
-          <dd data-detail-salary></dd>
+          <dd><span class="salary-value" data-detail-salary></span><span class="salary-mask" aria-label="Salary hidden">••••••</span></dd>
         </div>
         <div>
           <dt>Location</dt>
@@ -72,7 +72,7 @@
       </div>
 
       <footer class="application-summary-actions">
-        <p>A quick check keeps the follow-up queue honest.</p>
+        <p>Select “Just checked” after reviewing the career portal.</p>
         <div>
           <form method="post" data-delete-application>
             <button class="form-cancel delete-button" type="submit">Delete</button>
@@ -90,7 +90,7 @@
       {{if .EditApplicationForm.GeneralError}}
         <p class="application-form-alert" role="alert">{{.EditApplicationForm.GeneralError}}</p>
       {{end}}
-      <p class="application-form-intro">Update the record or move it to its next stage. Portal checks stay separate so the timeline remains accurate.</p>
+      <p class="application-form-intro">Edit application details below. Update portal checks from the application summary.</p>
 
       <div class="application-form-grid">
         <label class="form-field form-field-wide">
@@ -132,13 +132,13 @@
           {{with .EditApplicationForm.PostingURLError}}<small class="form-error" id="edit-posting-url-error">{{.}}</small>{{end}}
         </label>
 
-        <label class="form-field">
+        <label class="form-field salary-field">
           <span>Salary minimum <small>Optional</small></span>
           <input type="number" name="salary_min" min="0" step="1" inputmode="numeric" value="{{.EditApplicationForm.SalaryMin}}" {{if .EditApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="edit-salary-min-error"{{end}}>
           {{with .EditApplicationForm.SalaryMinError}}<small class="form-error" id="edit-salary-min-error">{{.}}</small>{{end}}
         </label>
 
-        <label class="form-field">
+        <label class="form-field salary-field">
           <span>Salary maximum <small>Optional</small></span>
           <input type="number" name="salary_max" min="0" step="1" inputmode="numeric" value="{{.EditApplicationForm.SalaryMax}}" {{if .EditApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="edit-salary-max-error"{{end}}>
           {{with .EditApplicationForm.SalaryMaxError}}<small class="form-error" id="edit-salary-max-error">{{.}}</small>{{end}}
@@ -157,7 +157,7 @@
       </div>
 
       <footer class="application-form-footer">
-        <p>Changes are saved directly to your local database.</p>
+        <p>Changes are saved on this device.</p>
         <div>
           <button class="form-cancel" type="button" data-cancel-application-edit>Back to summary</button>
           <button class="form-submit" type="submit">Save changes</button>

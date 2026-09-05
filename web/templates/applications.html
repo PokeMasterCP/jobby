@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Review and filter every job application saved in Jobby.">
   <title>Jobby — Applications</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=applications-page">
-  <script src="/static/js/application-form.js?v=applications-page" defer></script>
+  <script src="/static/js/salary-privacy.js?v=1"></script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=salary-privacy">
+  <script src="/static/js/application-form.js?v=salary-privacy" defer></script>
 </head>
 <body class="applications-index-page">
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -15,7 +16,6 @@
     <aside class="sidebar">
       <div>
         <a class="wordmark" href="/" aria-label="Jobby dashboard">Jobby<span aria-hidden="true">*</span></a>
-        <p class="workspace-label">Personal search desk</p>
       </div>
 
       <nav class="primary-nav" aria-label="Primary navigation">
@@ -33,17 +33,8 @@
           Organizations
           <small>{{.OrganizationCount}}</small>
         </a>
+        <button class="settings-nav-button" type="button" data-open-settings aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Settings</button>
       </nav>
-
-      <div class="sidebar-note">
-        <span class="note-mark" aria-hidden="true">*</span>
-        <p>Every application,<br>kept in view.</p>
-      </div>
-
-      <div class="local-status">
-        <span aria-hidden="true"></span>
-        <p>Saved locally<br><strong>just now</strong></p>
-      </div>
     </aside>
 
     <div class="workspace">
@@ -55,11 +46,10 @@
       <main class="applications-index-main" id="main-content">
         <header class="applications-index-header">
           <div>
-            <p class="eyebrow"><span>02</span> Application archive</p>
-            <h1>Every lead,<br><em>one record.</em></h1>
+            <h1>Applications</h1>
           </div>
           <aside class="archive-tally" aria-label="Application total">
-            <p>On the books</p>
+            <p>Total applications</p>
             <strong>{{.TotalApplications}}</strong>
             <span>{{if eq .TotalApplications 1}}application{{else}}applications{{end}} recorded</span>
           </aside>
@@ -68,8 +58,7 @@
         <section class="application-filter-panel" aria-labelledby="filter-heading">
           <header>
             <div>
-              <p class="section-number">Filter desk</p>
-              <h2 id="filter-heading">Narrow the ledger</h2>
+              <h2 id="filter-heading">Filter applications</h2>
             </div>
             <span aria-hidden="true">*</span>
           </header>
@@ -87,8 +76,8 @@
               </select>
             </label>
 
-            <label>
-              <span>Income potential</span>
+            <label class="salary-field">
+              <span>Salary</span>
               <select name="income">
                 <option value="">Any income</option>
                 <option value="listed" {{if eq .Filters.Income "listed"}}selected{{end}}>Salary listed</option>
@@ -121,8 +110,7 @@
         <section class="panel application-archive-panel" aria-labelledby="application-archive-title">
           <header class="panel-header">
             <div>
-              <p class="section-number">Complete history</p>
-              <h2 id="application-archive-title">Application ledger</h2>
+              <h2 id="application-archive-title">All applications</h2>
             </div>
             <span class="archive-result-count">{{.FilteredCount}} shown</span>
           </header>
@@ -152,7 +140,7 @@
                         <span>{{.RoleTitle}}</span>
                       </span>
                     </span>
-                    <span class="salary">{{.Salary}}</span>
+                    <span class="salary"><span class="salary-value">{{.Salary}}</span><span class="salary-mask" aria-label="Salary hidden">••••••</span></span>
                     <span class="location"><span aria-hidden="true">{{.LocationIcon}}</span> {{.Location}}</span>
                     <span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span>
                     <span class="last-checked archive-applied-date">
@@ -173,12 +161,12 @@
               <span aria-hidden="true">*</span>
               <div>
                 {{if .TotalApplications}}
-                  <h3>No records match.</h3>
-                  <p>Try clearing a filter or widening the income range to bring more applications back into view.</p>
+                  <h3>No matching applications.</h3>
+                  <p>Try clearing a filter or choosing a different salary range.</p>
                   <a href="/applications">Clear all filters →</a>
                 {{else}}
                   <h3>No applications yet.</h3>
-                  <p>Add your first application from the dashboard. It will appear here as part of the complete ledger.</p>
+                  <p>Add an application from the dashboard to get started.</p>
                   <a href="/">Return to dashboard →</a>
                 {{end}}
               </div>
@@ -197,5 +185,6 @@
     {{range .OrganizationOptions}}<option value="{{.Name}}"></option>{{end}}
   </datalist>
   {{template "application-detail-dialog" .}}
+  {{template "settings-dialog" .Settings}}
 </body>
 </html>

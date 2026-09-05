@@ -203,13 +203,13 @@
   };
 
   const showSummary = () => {
-    kicker.textContent = "05 / Application brief";
+    kicker.textContent = "Application details";
     summary.hidden = false;
     editForm.hidden = true;
   };
 
   const showEditForm = () => {
-    kicker.textContent = "05 / Edit record";
+    kicker.textContent = "Edit application";
     summary.hidden = true;
     editForm.hidden = false;
     const focusField = editForm.querySelector('[aria-invalid="true"]') ||
@@ -263,4 +263,82 @@
     detailDialog.showModal();
     showEditForm();
   }
+})();
+
+(() => {
+  const dialog = document.querySelector("#settings-dialog");
+  const openButton = document.querySelector("[data-open-settings]");
+  if (!dialog || !openButton) return;
+  const form = dialog.querySelector("[data-settings-form]");
+  const error = dialog.querySelector("[data-settings-error]");
+  const submit = form.querySelector('[type="submit"]');
+  let saving = false;
+  openButton.addEventListener("click", () => {
+    form.reset();
+    error.hidden = true;
+    dialog.showModal();
+  });
+  dialog.querySelectorAll("[data-close-settings]").forEach((button) => {
+    button.addEventListener("click", () => { if (!saving) dialog.close(); });
+  });
+  dialog.addEventListener("cancel", (event) => { if (saving) event.preventDefault(); });
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog && !saving) dialog.close();
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (saving) return;
+    saving = true;
+    submit.disabled = true;
+    submit.textContent = "Saving…";
+    error.hidden = true;
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        body: new URLSearchParams(new FormData(form)),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      window.location.reload();
+    } catch (failure) {
+      error.textContent = failure.message || "Unable to save settings. Please try again.";
+      error.hidden = false;
+    } finally {
+      saving = false;
+      submit.disabled = false;
+      submit.textContent = "Save settings";
+    }
+  });
+})();
+
+(() => {
+  const toggle = document.querySelector("input[data-salary-privacy]");
+  if (!toggle) return;
+  const apply = (hidden) => {
+    document.documentElement.dataset.salaryPrivacy = String(hidden);
+    toggle.checked = hidden;
+    toggle.defaultChecked = hidden;
+    document.querySelectorAll('.salary-field input').forEach((input) => {
+      if (!input.hasAttribute("data-salary-placeholder")) {
+        input.dataset.salaryPlaceholder = input.getAttribute("placeholder") || "";
+      }
+      input.type = hidden ? "password" : "number";
+      input.inputMode = "numeric";
+      input.placeholder = hidden ? "Hidden" : input.dataset.salaryPlaceholder;
+    });
+    document.documentElement.dataset.salaryPrivacyReady = "true";
+  };
+  apply(document.documentElement.dataset.salaryPrivacy === "true");
+  toggle.addEventListener("change", () => {
+    apply(toggle.checked);
+    try {
+      localStorage.setItem("jobby.hideSalaries", String(toggle.checked));
+    } catch {
+      // The toggle still works for the current page without storage.
+    }
+  });
+  window.addEventListener("storage", (event) => {
+    if (event.key === "jobby.hideSalaries" || event.key === null) {
+      apply(event.newValue === "true");
+    }
+  });
 })();
