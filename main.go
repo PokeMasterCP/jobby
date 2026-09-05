@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 	_ "time/tzdata"
+	"unicode/utf8"
 
 	"github.com/pokemastercp/jobby/internal/database"
 	"github.com/pressly/goose/v3"
@@ -27,6 +28,7 @@ var appFS embed.FS
 var applicationLocation = mustLoadLocation("America/Chicago")
 
 type overviewData struct {
+	Settings                  database.GetSettingsRow
 	ReturnPath                string
 	Applications              []applicationView
 	PortalApplications        []portalApplicationView
@@ -73,6 +75,7 @@ type dashboardWeekView struct {
 }
 
 type applicationsPageData struct {
+	Settings              database.GetSettingsRow
 	ReturnPath            string
 	Applications          []applicationView
 	OrganizationOptions   []organizationFilterOption
@@ -86,6 +89,7 @@ type applicationsPageData struct {
 }
 
 type organizationsPageData struct {
+	Settings               database.GetSettingsRow
 	Organizations          []organizationView
 	TotalOrganizations     int
 	TotalApplications      int64
@@ -252,6 +256,33 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
+	mux.HandleFunc("POST /settings", func(w http.ResponseWriter, r *http.Request) {
+		if !isSameOrigin(r) {
+			http.Error(w, "Invalid request origin", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 4096)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Unable to read settings", http.StatusBadRequest)
+			return
+		}
+		name := strings.TrimSpace(r.PostForm.Get("name"))
+		days, err := strconv.ParseInt(r.PostForm.Get("portal_check_days"), 10, 64)
+		if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 100 {
+			http.Error(w, "Name must be 100 characters or fewer.", http.StatusUnprocessableEntity)
+			return
+		}
+		if err != nil || days < 1 || days > 365 {
+			http.Error(w, "Choose a portal check interval from 1 to 365 whole days.", http.StatusUnprocessableEntity)
+			return
+		}
+		if err := queries.UpdateSettings(r.Context(), database.UpdateSettingsParams{Name: name, PortalCheckDays: days}); err != nil {
+			log.Printf("save settings: %v", err)
+			http.Error(w, "Unable to save settings. Please try again.", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		renderOverview(w, r, queries, templates, overviewPageState{}, http.StatusOK)
 	})
@@ -607,6 +638,10 @@ func renderOrganizations(w http.ResponseWriter, ctx context.Context, queries *da
 }
 
 func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewData, error) {
+	settings, err := queries.GetSettings(ctx)
+	if err != nil {
+		return overviewData{}, err
+	}
 	applications, err := queries.ListApplications(ctx)
 	if err != nil {
 		return overviewData{}, err
@@ -617,6 +652,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	}
 
 	data := overviewData{
+		Settings:          settings,
 		ReturnPath:        "/#applications",
 		TotalApplications: len(applications),
 		OrganizationCount: len(organizations),
@@ -700,7 +736,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		if application.SalaryMin.Valid && application.SalaryMax.Valid {
 			openSalaryMidpoints = append(openSalaryMidpoints, application.SalaryMin.Int64+(application.SalaryMax.Int64-application.SalaryMin.Int64)/2)
 		}
-		applicationView := newApplicationView(application, now)
+		applicationView := newApplicationView(application, now, int(settings.PortalCheckDays))
 		data.Applications = append(data.Applications, applicationView)
 		if applicationView.LastCheckedIsDue {
 			data.PortalApplications = append(data.PortalApplications, newPortalApplicationView(application, applicationView, now))
@@ -754,7 +790,10 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		return data.PortalApplications[i].daysSinceCheck > data.PortalApplications[j].daysSinceCheck
 	})
 	data.PortalHeadingCount, data.PortalHeadingAction, data.PortalCheckSummary = portalCopy(len(data.PortalApplications))
-	data.PortalDescription = "These applications have not been checked in seven or more days."
+	data.PortalDescription = fmt.Sprintf("Check open applications every %d days. These applications are due for a check.", settings.PortalCheckDays)
+	if settings.PortalCheckDays == 1 {
+		data.PortalDescription = "Check open applications daily. These applications are due for a check."
+	}
 	if len(data.PortalApplications) == 0 {
 		data.PortalDescription = "You're caught up on portal checks for every open application."
 	}
@@ -803,6 +842,10 @@ func medianInt64(values []int64) int64 {
 }
 
 func loadApplicationsPageData(ctx context.Context, queries *database.Queries, filters applicationFilters) (applicationsPageData, error) {
+	settings, err := queries.GetSettings(ctx)
+	if err != nil {
+		return applicationsPageData{}, err
+	}
 	applications, err := queries.ListApplications(ctx)
 	if err != nil {
 		return applicationsPageData{}, err
@@ -824,6 +867,7 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 	}
 	returnURL := url.URL{Path: "/applications", RawQuery: returnQuery.Encode()}
 	data := applicationsPageData{
+		Settings:          settings,
 		ReturnPath:        returnURL.RequestURI(),
 		TotalApplications: len(applications),
 		OrganizationCount: len(organizations),
@@ -838,7 +882,7 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 	now := time.Now().In(applicationLocation)
 	for _, application := range applications {
 		if applicationMatchesFilters(application, filters) {
-			data.Applications = append(data.Applications, newApplicationView(application, now))
+			data.Applications = append(data.Applications, newApplicationView(application, now, int(settings.PortalCheckDays)))
 		}
 	}
 
@@ -855,12 +899,17 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 }
 
 func loadOrganizationsPageData(ctx context.Context, queries *database.Queries, state organizationsPageState) (organizationsPageData, error) {
+	settings, err := queries.GetSettings(ctx)
+	if err != nil {
+		return organizationsPageData{}, err
+	}
 	organizations, err := queries.ListOrganizations(ctx)
 	if err != nil {
 		return organizationsPageData{}, err
 	}
 
 	data := organizationsPageData{
+		Settings:               settings,
 		TotalOrganizations:     len(organizations),
 		EditOrganizationForm:   state.EditOrganizationForm,
 		SelectedOrganizationID: state.SelectedOrganizationID,
@@ -1160,8 +1209,8 @@ func isApplicationStatus(status string) bool {
 	}
 }
 
-func newApplicationView(application database.ListApplicationsRow, now time.Time) applicationView {
-	lastChecked, lastCheckedDetail, lastCheckedIsDue := formatLastChecked(application.LastCheckedAt, now)
+func newApplicationView(application database.ListApplicationsRow, now time.Time, portalCheckDays int) applicationView {
+	lastChecked, lastCheckedDetail, lastCheckedIsDue := formatLastChecked(application.LastCheckedAt, now, portalCheckDays)
 	statusLabel, statusClass := formatStatus(application.Status)
 
 	return applicationView{
@@ -1298,7 +1347,7 @@ func formatStatus(status string) (string, string) {
 	}
 }
 
-func formatLastChecked(lastChecked sql.NullString, now time.Time) (string, string, bool) {
+func formatLastChecked(lastChecked sql.NullString, now time.Time, portalCheckDays int) (string, string, bool) {
 	if !lastChecked.Valid {
 		return "Not checked", "Check portal ↗", true
 	}
@@ -1313,10 +1362,15 @@ func formatLastChecked(lastChecked sql.NullString, now time.Time) (string, strin
 	if daysAgo < 1 {
 		return "Today", checkedAt.Format("3:04 PM"), false
 	}
-	if daysAgo == 1 {
-		return "Yesterday", checkedAt.Format("3:04 PM"), false
+	isDue := daysAgo >= portalCheckDays
+	detail := checkedAt.Format("3:04 PM")
+	if isDue {
+		detail = "Check portal ↗"
 	}
-	return fmt.Sprintf("%d days ago", daysAgo), "Check portal ↗", daysAgo >= 7
+	if daysAgo == 1 {
+		return "Yesterday", detail, isDue
+	}
+	return fmt.Sprintf("%d days ago", daysAgo), detail, isDue
 }
 
 func calendarDaysBetween(earlier, later time.Time) int {

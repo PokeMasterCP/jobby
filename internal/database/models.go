@@ -32,3 +32,9 @@ type Organization struct {
 	CreatedAt  string
 	UpdatedAt  string
 }
+
+type Setting struct {
+	ID              int64
+	Name            string
+	PortalCheckDays int64
+}
