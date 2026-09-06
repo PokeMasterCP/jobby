@@ -580,8 +580,8 @@ func main() {
 		http.Redirect(w, r, applicationMutationReturnPath(r), http.StatusSeeOther)
 	})
 
-	addr := ":8080"
-	log.Printf("listening on http://localhost%s", addr)
+	addr := ":80"
+	log.Printf("listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
 	}

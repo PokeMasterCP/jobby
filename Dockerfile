@@ -16,6 +16,8 @@ FROM alpine:3.22
 
 COPY --from=build /jobby /usr/local/bin/jobby
 
-EXPOSE 8080
+WORKDIR /data
+
+EXPOSE 80
 
 CMD ["jobby"]

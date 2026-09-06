@@ -27,7 +27,7 @@ The application is intentionally designed for one person running it on their own
 
 ## Running with Docker
 
-Build the image:
+Docker is the expected way to build and run Jobby. Build the image from the repository root:
 
 ```sh
 docker build -t jobby .
@@ -39,30 +39,18 @@ Run it with a persistent local data directory:
 mkdir -p data
 docker run --rm \
   --name jobby \
-  -p 127.0.0.1:8080:8080 \
+  -p 127.0.0.1:8080:80 \
   -v "$PWD/data:/data" \
-  -w /data \
   jobby
 ```
 
-Open [http://localhost:8080](http://localhost:8080). The SQLite database is stored at `data/jobby.db` on the host.
+Open [http://localhost:8080](http://localhost:8080). The container uses `/data` as its working directory, so the SQLite database is stored at `data/jobby.db` on the host. `$PWD/data` gives Docker the absolute path to the `data` directory under your current terminal directory. Migrations run automatically at startup.
 
-## Running from source
-
-The project requires Go 1.27 or newer.
-
-```sh
-go mod download
-go run .
-```
-
-Open [http://localhost:8080](http://localhost:8080). When run from the repository root, the application stores data in `jobby.db`. Migrations run automatically at startup.
-
-The listen address is currently fixed to port `8080`.
+The application listens on port `80` on all container interfaces. The port mapping above exposes it on host port `8080` and keeps access limited to the local machine. Rebuild the image and recreate the container after changing the code.
 
 ## Development
 
-Format and verify the Go code:
+For development checks, install Go 1.27 or newer. Format and verify the Go code:
 
 ```sh
 gofmt -w main.go
