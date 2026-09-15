@@ -2,10 +2,13 @@
 <dialog class="application-dialog settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
   <section class="application-dialog-card">
     <header class="application-dialog-header">
-      <h2 id="settings-title">Settings</h2>
+      <div>
+        <p class="section-number">Workspace</p>
+        <h2 id="settings-title">Settings</h2>
+      </div>
       <button class="dialog-close" type="button" data-close-settings aria-label="Close settings">×</button>
     </header>
-    <form class="application-form" method="post" action="/settings" data-settings-form>
+    <form class="application-form" method="post" action="/settings" data-settings-form novalidate>
       <p class="application-form-alert" role="alert" data-settings-error hidden></p>
       <div class="application-form-grid">
         <label class="form-field form-field-wide">

@@ -1,51 +1,56 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{template "head-assets"}}
   <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
-  <title>Jobby — Search dashboard</title>
-  <script src="/static/js/salary-privacy.js?v=1"></script>
-  <link rel="stylesheet" href="/static/css/styles.css?v=salary-privacy">
-  <script src="/static/js/application-form.js?v=salary-privacy" defer></script>
+  <title>Jobby — Dashboard</title>
 </head>
-<body>
+<body class="page-dashboard">
   <a class="skip-link" href="#main-content">Skip to content</a>
 
   <div class="app-shell">
     <aside class="sidebar">
-      <div>
-        <a class="wordmark" href="/" aria-label="Jobby dashboard">Jobby<span aria-hidden="true">*</span></a>
-      </div>
+      <a class="brand" href="/" aria-label="Jobby dashboard">
+        <span class="brand-mark" aria-hidden="true">*</span>
+        <span class="brand-name">Jobby</span>
+      </a>
+      <p class="brand-tag">Local job search</p>
 
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a class="active" href="/" aria-current="page">
-          <span aria-hidden="true">▦</span>
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="nav-link" href="/" data-nav="dashboard" aria-current="page">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 3h6v6H3V3zm8 0h6v8h-6V3zM3 11h6v6H3v-6zm8 4h6v2h-6v-2z"/></svg>
           Dashboard
         </a>
-        <a href="/applications">
-          <span aria-hidden="true">◎</span>
+        <a class="nav-link" href="/applications" data-nav="applications">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 3h8l2 2v12H4V3h2zm0 2v1h8V5H6zm-1 3h10v8H5V8z"/></svg>
           Applications
-          <small>{{.TotalApplications}}</small>
+          <span class="nav-count">{{.TotalApplications}}</span>
         </a>
-        <a href="/organizations">
-          <span aria-hidden="true">◇</span>
+        <a class="nav-link" href="/organizations" data-nav="organizations">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 17V7l7-4 7 4v10h-5v-5H8v5H3z"/></svg>
           Organizations
-          <small>{{.OrganizationCount}}</small>
+          <span class="nav-count">{{.OrganizationCount}}</span>
         </a>
-        <button class="settings-nav-button" type="button" data-open-settings aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Settings</button>
+        <button class="nav-link" type="button" data-open-settings aria-haspopup="dialog">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8.2 2h3.6l.5 2.1a5.8 5.8 0 0 1 1.6.9l2-.8 1.8 3.1-1.6 1.4a5.8 5.8 0 0 1 0 1.8l1.6 1.4-1.8 3.1-2-.8a5.8 5.8 0 0 1-1.6.9L11.8 18H8.2l-.5-2.1a5.8 5.8 0 0 1-1.6-.9l-2 .8L2.3 12.7l1.6-1.4a5.8 5.8 0 0 1 0-1.8L2.3 8.1 4.1 5l2 .8a5.8 5.8 0 0 1 1.6-.9L8.2 2zM10 12.2A2.2 2.2 0 1 0 10 7.8a2.2 2.2 0 0 0 0 4.4z"/></svg>
+          Settings
+        </button>
       </nav>
+      <p class="sidebar-foot">Saved on this device</p>
     </aside>
 
     <div class="workspace">
-      <header class="mobile-header">
-        <a class="wordmark" href="/">Jobby<span aria-hidden="true">*</span></a>
-        <span class="local-pill"><i aria-hidden="true"></i> Local</span>
+      <header class="mobile-topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">*</span>
+          <span class="brand-name">Jobby</span>
+        </a>
       </header>
 
       <main id="main-content">
         <header class="page-header">
           <div>
+            <p class="page-kicker">Overview</p>
             <h1>Dashboard</h1>
             {{if .Settings.Name}}<p class="dashboard-greeting">Welcome, {{.Settings.Name}}.</p>{{end}}
           </div>
@@ -56,16 +61,50 @@
           </div>
         </header>
 
-        <section class="metrics dashboard-metrics" aria-label="Search health summary">
+        {{if .PortalApplications}}
+          <section class="attention-card is-due" aria-labelledby="portal-title">
+            <header class="attention-header">
+              <div>
+                <h2 id="portal-title">{{.PortalHeadingCount}} {{.PortalHeadingAction}}</h2>
+                <p>{{.PortalDescription}}</p>
+              </div>
+            </header>
+            <ul class="attention-list">
+              {{range .PortalApplications}}
+                <li class="attention-item">
+                  <button type="button" {{template "application-data" .Application}}>
+                    <strong>{{.Application.OrganizationName}}</strong>
+                    <small>{{.Application.RoleTitle}}</small>
+                  </button>
+                  <span class="attention-age">{{.CheckAge}}</span>
+                  {{if .Application.CareersURL}}
+                    <a class="btn-secondary" href="{{.Application.CareersURL}}" target="_blank" rel="noreferrer">Open portal</a>
+                  {{end}}
+                  <form method="post" action="/applications/{{.Application.ID}}/checked">
+                    <button class="checked-button" type="submit">Just checked</button>
+                  </form>
+                </li>
+              {{end}}
+            </ul>
+          </section>
+        {{else}}
+          <section class="attention-card is-clear" aria-label="Portal checks">
+            <p>{{.PortalDescription}}</p>
+            <strong>{{.PortalHeadingCount}}</strong>
+          </section>
+        {{end}}
+
+        <section class="metrics" aria-label="Search health summary">
           <article class="metric metric-feature">
             <p>Last 7 days</p>
-            <div><strong>{{.ApplicationsLast7}}</strong><span>{{.ApplicationsLast30}} sent in the last 30 days</span></div>
+            <strong>{{.ApplicationsLast7}}</strong>
+            <span>{{.ApplicationsLast30}} sent in the last 30 days</span>
           </article>
-          <article class="metric">
+          <a class="metric" href="/applications?status=open">
             <p>Open applications</p>
             <strong>{{.OpenCount}}</strong>
             <span>{{.PortalCheckSummary}}</span>
-          </article>
+          </a>
           <article class="metric">
             <p>Reached contact</p>
             <strong>{{.ContactRate}}%</strong>
@@ -77,6 +116,15 @@
             <span>Across {{.OpenCount}} active applications</span>
           </article>
         </section>
+
+        <nav class="status-links" aria-label="Filter by status">
+          <a href="/applications">All {{.TotalApplications}}</a>
+          <a href="/applications?status=applied">Applied {{.AppliedCount}}</a>
+          <a href="/applications?status=in_contact">In contact {{.InContactCount}}</a>
+          <a href="/applications?status=accepted">Accepted {{.AcceptedCount}}</a>
+          <a href="/applications?status=rejected_after_contact">Rejected after contact {{.RejectedAfterContactCount}}</a>
+          <a href="/applications?status=rejected_no_contact">Rejected, no contact {{.RejectedNoContactCount}}</a>
+        </nav>
 
         <div class="dashboard-analytics">
           <section class="panel cadence-panel" aria-labelledby="cadence-title">
@@ -101,7 +149,7 @@
           <section class="panel conversion-panel" aria-labelledby="conversion-title">
             <header class="analytics-header compact">
               <div>
-                <h2 id="conversion-title">Application outcomes</h2>
+                <h2 id="conversion-title">Outcomes</h2>
               </div>
               <span class="analytics-stamp">{{.TotalApplications}} total</span>
             </header>
@@ -112,7 +160,7 @@
             </div>
             <dl class="conversion-stats">
               <div><dt>Offer rate</dt><dd>{{.OfferRate}}%</dd><small>of closed applications</small></div>
-              <div><dt>Closed without contact</dt><dd>{{.NoResponseRate}}%</dd><small>of closed applications</small></div>
+              <div><dt>No contact</dt><dd>{{.NoResponseRate}}%</dd><small>of closed applications</small></div>
             </dl>
             <div class="outcome-bar" aria-hidden="true">
               <span class="bar-open" style="--share: {{.OpenCount}}"></span><span class="bar-accepted" style="--share: {{.AcceptedCount}}"></span><span class="bar-contact" style="--share: {{.RejectedAfterContactCount}}"></span><span class="bar-no-contact" style="--share: {{.RejectedNoContactCount}}"></span>
@@ -148,106 +196,76 @@
           </section>
         </div>
 
-        <div class="dashboard-grid">
-          <section class="panel applications-panel" id="applications" aria-labelledby="applications-title">
-            <header class="panel-header">
-              <div>
-                <h2 id="applications-title">Recently active</h2>
-              </div>
-              <a class="quiet-button" href="/applications">View all <span aria-hidden="true">→</span></a>
-            </header>
+        <section class="panel applications-panel" id="applications" aria-labelledby="applications-title" data-sortable-table>
+          <header class="panel-header">
+            <div>
+              <h2 id="applications-title">Recently active</h2>
+            </div>
+            <a class="quiet-button" href="/applications">View all</a>
+          </header>
 
-            {{if .Applications}}
-              <div class="application-labels" aria-hidden="true">
-                <span>Organization / role</span>
-                <span>Salary</span>
-                <span>Location</span>
-                <span>Status</span>
-                <span>Last checked</span>
-              </div>
+          {{if .Applications}}
+            <div class="table-head application-labels" aria-hidden="false">
+              <button class="sort-button" type="button" data-sort="organizationName" data-sort-type="string" data-sort-label="organization">Organization / role</button>
+              <button class="sort-button" type="button" data-sort="salary" data-sort-type="number" data-sort-default="desc" data-sort-label="salary">Salary</button>
+              <button class="sort-button" type="button" data-sort="workLocation" data-sort-type="string" data-sort-label="location">Location</button>
+              <button class="sort-button" type="button" data-sort="status" data-sort-type="status" data-sort-label="status">Status</button>
+              <button class="sort-button" type="button" data-sort="lastChecked" data-sort-type="string" data-sort-label="last checked">Last checked</button>
+            </div>
 
-              <ol class="application-list">
-                {{range .Applications}}
-                  <li>
-                    <button
-                      class="application-row"
-                      type="button"
-                      aria-haspopup="dialog"
-                      {{template "application-data" .}}
-                    >
-                      <span class="application-identity">
-                        <span class="org-mark {{.OrganizationMark}}">{{.OrganizationInitial}}</span>
-                        <span>
-                          <strong>{{.OrganizationName}}</strong>
-                          <span>{{.RoleTitle}}</span>
-                        </span>
+            <ol class="application-list" data-table-list>
+              {{range .Applications}}
+                <li>
+                  <button class="application-row" type="button" aria-haspopup="dialog" data-table-row {{template "application-data" .}}>
+                    <span class="application-identity">
+                      <span class="org-mark {{.OrganizationMark}}">{{.OrganizationInitial}}</span>
+                      <span>
+                        <strong>{{.OrganizationName}}</strong>
+                        <span>{{.RoleTitle}}</span>
                       </span>
-                      <span class="salary"><span class="salary-value">{{.Salary}}</span><span class="salary-mask" aria-label="Salary hidden">••••••</span></span>
-                      <span class="location"><span aria-hidden="true">{{.LocationIcon}}</span> {{.Location}}</span>
-                      <span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span>
-                      <span class="last-checked{{if .LastCheckedIsDue}} is-due{{end}}">
-                        <strong>{{.LastChecked}}</strong>
-                        {{if .LastCheckedDetail}}<span>{{.LastCheckedDetail}}</span>{{end}}
-                      </span>
-                      <span class="application-row-arrow" aria-hidden="true">→</span>
-                    </button>
-                  </li>
-                {{end}}
-              </ol>
-
-              <footer class="panel-footer">
-                <span>{{.ApplicationSummary}}</span>
-                <span>Sorted by newest added</span>
-              </footer>
-            {{else}}
-              <div class="application-empty">
-                <span aria-hidden="true">*</span>
-                <div>
-                  {{if .TotalApplications}}
-                    <h3>No open applications.</h3>
-                    <p>Applied and in-contact applications will appear here.</p>
-                  {{else}}
-                    <h3>No applications yet.</h3>
-                    <p>Add an application to track its status and portal checks.</p>
-                  {{end}}
-                </div>
-              </div>
-              <footer class="panel-footer">
-                {{if .TotalApplications}}
-                  <span>No active applications</span>
-                  <span>{{.TotalApplications}} total</span>
-                {{else}}
-                  <span>No applications added</span>
-                  <span>0 applications</span>
-                {{end}}
-              </footer>
-            {{end}}
-          </section>
-
-          <aside class="side-stack">
-            <section class="panel portal-panel" aria-labelledby="portal-title">
-              <header>
-                <p class="section-number">Portal checks</p>
-                <span class="asterisk" aria-hidden="true">*</span>
-              </header>
-              <h2 id="portal-title">{{.PortalHeadingCount}}<br>{{.PortalHeadingAction}}</h2>
-              <p>{{.PortalDescription}}</p>
-              {{if .PortalApplications}}
-                <ul>
-                  {{range .PortalApplications}}
-                    <li>
-                      <button type="button" {{template "application-data" .Application}}>
-                        <span>{{.Application.OrganizationName}}</span><strong>{{.CheckAge}}</strong>
-                      </button>
-                    </li>
-                  {{end}}
-                </ul>
-                <button type="button" disabled>Start portal round <span aria-hidden="true">↗</span></button>
+                    </span>
+                    <span class="salary"><span class="cell-label">Salary</span><span class="salary-value">{{.Salary}}</span><span class="salary-mask" aria-label="Salary hidden">••••••</span></span>
+                    <span class="location"><span class="cell-label">Location</span>{{.Location}}</span>
+                    <span><span class="cell-label">Status</span><span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span></span>
+                    <span class="last-checked{{if .LastCheckedIsDue}} is-due{{end}}">
+                      <span class="cell-label">Last checked</span>
+                      <strong>{{.LastChecked}}</strong>
+                      {{if .LastCheckedDetail}}<span>{{.LastCheckedDetail}}</span>{{end}}
+                    </span>
+                  </button>
+                </li>
               {{end}}
-            </section>
+            </ol>
 
-          </aside>
-        </div>
+            <footer class="panel-footer">
+              <span>{{.ApplicationSummary}}</span>
+              <span data-sort-label>Newest added first</span>
+            </footer>
+          {{else}}
+            <div class="application-empty">
+              <span aria-hidden="true">*</span>
+              <div>
+                {{if .TotalApplications}}
+                  <h3>No open applications.</h3>
+                  <p>Applied and in-contact applications will appear here.</p>
+                  <a href="/applications">Review closed applications</a>
+                {{else}}
+                  <h3>No applications yet.</h3>
+                  <p>Add an application to track its status and portal checks.</p>
+                {{end}}
+              </div>
+            </div>
+            <footer class="panel-footer">
+              {{if .TotalApplications}}
+                <span>No active applications</span>
+                <span>{{.TotalApplications}} total</span>
+              {{else}}
+                <span>No applications added</span>
+                <span>0 applications</span>
+              {{end}}
+            </footer>
+          {{end}}
+        </section>
       </main>
     </div>
   </div>
@@ -256,6 +274,7 @@
     <section class="application-dialog-card">
       <header class="application-dialog-header">
         <div>
+          <p class="section-number">New record</p>
           <h2 id="application-dialog-title">Add an application</h2>
         </div>
         <button class="dialog-close" type="button" aria-label="Close application form" data-close-application-dialog>×</button>
@@ -265,7 +284,7 @@
         {{if .ApplicationForm.GeneralError}}
           <p class="application-form-alert" role="alert">{{.ApplicationForm.GeneralError}}</p>
         {{end}}
-        <p class="application-form-intro">New applications start as <strong>Applied</strong>. You can add optional details later.</p>
+        <p class="application-form-intro">New applications start as <strong>Applied</strong>. You can add optional details now or later.</p>
 
         <div class="application-form-grid">
           <label class="form-field form-field-wide">
@@ -276,12 +295,6 @@
           <datalist id="organization-options">
             {{range .OrganizationNames}}<option value="{{.}}"></option>{{end}}
           </datalist>
-
-          <label class="form-field form-field-wide">
-            <span>Career portal URL <small>Optional</small></span>
-            <input type="url" name="careers_url" inputmode="url" placeholder="Organization's Career Portal link" value="{{.ApplicationForm.CareersURL}}" {{if .ApplicationForm.CareersURLError}}aria-invalid="true" aria-describedby="careers-url-error"{{end}}>
-            {{with .ApplicationForm.CareersURLError}}<small class="form-error" id="careers-url-error">{{.}}</small>{{end}}
-          </label>
 
           <label class="form-field">
             <span>Role title <small>Required</small></span>
@@ -297,6 +310,12 @@
               <option value="local" {{if eq .ApplicationForm.WorkLocation "local"}}selected{{end}}>Local</option>
             </select>
             {{with .ApplicationForm.WorkLocationError}}<small class="form-error" id="work-location-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="form-field form-field-wide">
+            <span>Career portal URL <small>Optional</small></span>
+            <input type="url" name="careers_url" inputmode="url" placeholder="Organization's Career Portal link" value="{{.ApplicationForm.CareersURL}}" {{if .ApplicationForm.CareersURLError}}aria-invalid="true" aria-describedby="careers-url-error"{{end}}>
+            {{with .ApplicationForm.CareersURLError}}<small class="form-error" id="careers-url-error">{{.}}</small>{{end}}
           </label>
 
           <label class="form-field form-field-wide">

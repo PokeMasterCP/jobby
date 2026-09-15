@@ -1,138 +1,149 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Review and filter every job application saved in Jobby.">
+  {{template "head-assets"}}
+  <meta name="description" content="Review, search, sort, and filter every job application saved in Jobby.">
   <title>Jobby — Applications</title>
-  <script src="/static/js/salary-privacy.js?v=1"></script>
-  <link rel="stylesheet" href="/static/css/styles.css?v=salary-privacy">
-  <script src="/static/js/application-form.js?v=salary-privacy" defer></script>
 </head>
-<body class="applications-index-page">
+<body class="page-applications applications-index-page">
   <a class="skip-link" href="#main-content">Skip to content</a>
 
   <div class="app-shell">
     <aside class="sidebar">
-      <div>
-        <a class="wordmark" href="/" aria-label="Jobby dashboard">Jobby<span aria-hidden="true">*</span></a>
-      </div>
+      <a class="brand" href="/" aria-label="Jobby dashboard">
+        <span class="brand-mark" aria-hidden="true">*</span>
+        <span class="brand-name">Jobby</span>
+      </a>
+      <p class="brand-tag">Local job search</p>
 
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a href="/">
-          <span aria-hidden="true">▦</span>
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="nav-link" href="/" data-nav="dashboard">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 3h6v6H3V3zm8 0h6v8h-6V3zM3 11h6v6H3v-6zm8 4h6v2h-6v-2z"/></svg>
           Dashboard
         </a>
-        <a class="active" href="/applications" aria-current="page">
-          <span aria-hidden="true">◎</span>
+        <a class="nav-link" href="/applications" data-nav="applications" aria-current="page">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 3h8l2 2v12H4V3h2zm0 2v1h8V5H6zm-1 3h10v8H5V8z"/></svg>
           Applications
-          <small>{{.TotalApplications}}</small>
+          <span class="nav-count">{{.TotalApplications}}</span>
         </a>
-        <a href="/organizations">
-          <span aria-hidden="true">◇</span>
+        <a class="nav-link" href="/organizations" data-nav="organizations">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 17V7l7-4 7 4v10h-5v-5H8v5H3z"/></svg>
           Organizations
-          <small>{{.OrganizationCount}}</small>
+          <span class="nav-count">{{.OrganizationCount}}</span>
         </a>
-        <button class="settings-nav-button" type="button" data-open-settings aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Settings</button>
+        <button class="nav-link" type="button" data-open-settings aria-haspopup="dialog">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8.2 2h3.6l.5 2.1a5.8 5.8 0 0 1 1.6.9l2-.8 1.8 3.1-1.6 1.4a5.8 5.8 0 0 1 0 1.8l1.6 1.4-1.8 3.1-2-.8a5.8 5.8 0 0 1-1.6.9L11.8 18H8.2l-.5-2.1a5.8 5.8 0 0 1-1.6-.9l-2 .8L2.3 12.7l1.6-1.4a5.8 5.8 0 0 1 0-1.8L2.3 8.1 4.1 5l2 .8a5.8 5.8 0 0 1 1.6-.9L8.2 2zM10 12.2A2.2 2.2 0 1 0 10 7.8a2.2 2.2 0 0 0 0 4.4z"/></svg>
+          Settings
+        </button>
       </nav>
+      <p class="sidebar-foot">Saved on this device</p>
     </aside>
 
     <div class="workspace">
-      <header class="mobile-header">
-        <a class="wordmark" href="/">Jobby<span aria-hidden="true">*</span></a>
-        <a class="mobile-overview-link" href="/">Dashboard →</a>
+      <header class="mobile-topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">*</span>
+          <span class="brand-name">Jobby</span>
+        </a>
       </header>
 
       <main class="applications-index-main" id="main-content">
         <header class="applications-index-header">
           <div>
+            <p class="page-kicker">Directory</p>
             <h1>Applications</h1>
           </div>
-          <aside class="archive-tally" aria-label="Application total">
-            <p>Total applications</p>
-            <strong>{{.TotalApplications}}</strong>
-            <span>{{if eq .TotalApplications 1}}application{{else}}applications{{end}} recorded</span>
-          </aside>
+          <div class="page-actions">
+            <button class="primary-button" type="button" aria-haspopup="dialog" data-open-application-dialog>
+              <span aria-hidden="true">+</span> Add application
+            </button>
+          </div>
         </header>
 
-        <section class="application-filter-panel" aria-labelledby="filter-heading">
-          <header>
-            <div>
-              <h2 id="filter-heading">Filter applications</h2>
-            </div>
-            <span aria-hidden="true">*</span>
-          </header>
-          <form class="application-filters" method="get" action="/applications">
-            <label>
-              <span>Status</span>
-              <select name="status">
-                <option value="">Any status</option>
-                <option value="open" {{if eq .Filters.Status "open"}}selected{{end}}>Open</option>
-                <option value="applied" {{if eq .Filters.Status "applied"}}selected{{end}}>Applied</option>
-                <option value="in_contact" {{if eq .Filters.Status "in_contact"}}selected{{end}}>In contact</option>
-                <option value="accepted" {{if eq .Filters.Status "accepted"}}selected{{end}}>Accepted</option>
-                <option value="rejected_after_contact" {{if eq .Filters.Status "rejected_after_contact"}}selected{{end}}>Rejected after contact</option>
-                <option value="rejected_no_contact" {{if eq .Filters.Status "rejected_no_contact"}}selected{{end}}>Rejected, no contact</option>
-              </select>
-            </label>
-
-            <label class="salary-field">
-              <span>Salary</span>
-              <select name="income">
-                <option value="">Any income</option>
-                <option value="listed" {{if eq .Filters.Income "listed"}}selected{{end}}>Salary listed</option>
-                <option value="75000" {{if eq .Filters.Income "75000"}}selected{{end}}>Range reaches $75K+</option>
-                <option value="100000" {{if eq .Filters.Income "100000"}}selected{{end}}>Range reaches $100K+</option>
-                <option value="125000" {{if eq .Filters.Income "125000"}}selected{{end}}>Range reaches $125K+</option>
-                <option value="150000" {{if eq .Filters.Income "150000"}}selected{{end}}>Range reaches $150K+</option>
-              </select>
-            </label>
-
-            <label>
-              <span>Organization</span>
-              <select name="organization">
-                <option value="">Any organization</option>
-                {{range .OrganizationOptions}}
-                  <option value="{{.ID}}" {{if eq $.Filters.OrganizationID .ID}}selected{{end}}>{{.Name}}</option>
-                {{end}}
-              </select>
-            </label>
-
-            <div class="application-filter-actions">
-              {{if or .Filters.Status .Filters.Income .Filters.OrganizationID}}
-                <a href="/applications">Clear</a>
-              {{end}}
-              <button type="submit">Apply filters <span aria-hidden="true">→</span></button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel application-archive-panel" aria-labelledby="application-archive-title">
+        <section class="panel application-archive-panel" aria-labelledby="application-archive-title" data-sortable-table>
           <header class="panel-header">
             <div>
               <h2 id="application-archive-title">All applications</h2>
             </div>
-            <span class="archive-result-count">{{.FilteredCount}} shown</span>
+            <span class="archive-result-count"><span data-visible-count>{{.FilteredCount}}</span> shown</span>
           </header>
 
-          {{if .Applications}}
-            <div class="application-labels" aria-hidden="true">
-              <span>Organization / role</span>
-              <span>Salary</span>
-              <span>Location</span>
-              <span>Status</span>
-              <span>Applied</span>
+          <form class="filters application-filters" method="get" action="/applications" data-auto-submit>
+            <input type="hidden" name="status" value="{{.Filters.Status}}" data-status-field>
+            <input type="hidden" name="q" value="" data-persist="q">
+            <input type="hidden" name="sort" value="" data-persist="sort">
+            <input type="hidden" name="dir" value="" data-persist="dir">
+            <input type="hidden" name="location" value="" data-persist="location">
+
+            <div class="filter-toolbar">
+            <label class="search">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M8.5 3a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zm0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm5.6 8.2 3.4 3.4-1.4 1.4-3.4-3.4 1.4-1.4z"/></svg>
+              <span class="sr-only">Search applications</span>
+              <input type="search" data-table-search placeholder="Search…" autocomplete="off">
+            </label>
+
+            <div class="status-chips" role="group" aria-label="Status">
+              <button class="chip{{if not .Filters.Status}} is-active{{end}}" type="button" data-status-chip="">All</button>
+              <button class="chip{{if eq .Filters.Status "open"}} is-active{{end}}" type="button" data-status-chip="open">Open</button>
+              <button class="chip{{if eq .Filters.Status "applied"}} is-active{{end}}" type="button" data-status-chip="applied">Applied</button>
+              <button class="chip{{if eq .Filters.Status "in_contact"}} is-active{{end}}" type="button" data-status-chip="in_contact">In contact</button>
+              <button class="chip{{if eq .Filters.Status "accepted"}} is-active{{end}}" type="button" data-status-chip="accepted">Accepted</button>
+              <button class="chip{{if eq .Filters.Status "rejected_after_contact"}} is-active{{end}}" type="button" data-status-chip="rejected_after_contact">Rejected after contact</button>
+              <button class="chip{{if eq .Filters.Status "rejected_no_contact"}} is-active{{end}}" type="button" data-status-chip="rejected_no_contact">Rejected, no contact</button>
+            </div>
             </div>
 
-            <ol class="application-list">
+            <div class="filter-row">
+              <label class="salary-field">
+                <span>Salary</span>
+                <select name="income">
+                  <option value="">Any income</option>
+                  <option value="listed" {{if eq .Filters.Income "listed"}}selected{{end}}>Salary listed</option>
+                  <option value="75000" {{if eq .Filters.Income "75000"}}selected{{end}}>Range reaches $75K+</option>
+                  <option value="100000" {{if eq .Filters.Income "100000"}}selected{{end}}>Range reaches $100K+</option>
+                  <option value="125000" {{if eq .Filters.Income "125000"}}selected{{end}}>Range reaches $125K+</option>
+                  <option value="150000" {{if eq .Filters.Income "150000"}}selected{{end}}>Range reaches $150K+</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Organization</span>
+                <select name="organization">
+                  <option value="">Any organization</option>
+                  {{range .OrganizationOptions}}
+                    <option value="{{.ID}}" {{if eq $.Filters.OrganizationID .ID}}selected{{end}}>{{.Name}}</option>
+                  {{end}}
+                </select>
+              </label>
+
+              <label>
+                <span>Location</span>
+                <select data-table-filter="workLocation" data-filter-param="location">
+                  <option value="">Any location</option>
+                  <option value="remote">Remote</option>
+                  <option value="local">Local</option>
+                </select>
+              </label>
+
+              <div class="application-filter-actions">
+                <a href="/applications" data-clear-client-filters hidden>Clear</a>
+              </div>
+            </div>
+          </form>
+
+          {{if .Applications}}
+            <div class="table-head application-labels">
+              <button class="sort-button" type="button" data-sort="organizationName" data-sort-type="string" data-sort-label="organization">Organization / role</button>
+              <button class="sort-button" type="button" data-sort="salary" data-sort-type="number" data-sort-default="desc" data-sort-label="salary">Salary</button>
+              <button class="sort-button" type="button" data-sort="workLocation" data-sort-type="string" data-sort-label="location">Location</button>
+              <button class="sort-button" type="button" data-sort="status" data-sort-type="status" data-sort-label="status">Status</button>
+              <button class="sort-button" type="button" data-sort="appliedAt" data-sort-type="date" data-sort-default="desc" data-sort-label="applied date">Applied</button>
+            </div>
+
+            <ol class="application-list" data-table-list>
               {{range .Applications}}
                 <li>
-                  <button
-                    class="application-row"
-                    type="button"
-                    aria-haspopup="dialog"
-                    {{template "application-data" .}}
-                  >
+                  <button class="application-row" type="button" aria-haspopup="dialog" data-table-row {{template "application-data" .}}>
                     <span class="application-identity">
                       <span class="org-mark {{.OrganizationMark}}">{{.OrganizationInitial}}</span>
                       <span>
@@ -140,21 +151,30 @@
                         <span>{{.RoleTitle}}</span>
                       </span>
                     </span>
-                    <span class="salary"><span class="salary-value">{{.Salary}}</span><span class="salary-mask" aria-label="Salary hidden">••••••</span></span>
-                    <span class="location"><span aria-hidden="true">{{.LocationIcon}}</span> {{.Location}}</span>
-                    <span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span>
-                    <span class="last-checked archive-applied-date">
-                      <strong>{{.AppliedAtDisplay}}</strong>
+                    <span class="salary"><span class="cell-label">Salary</span><span class="salary-value">{{.Salary}}</span><span class="salary-mask" aria-label="Salary hidden">••••••</span></span>
+                    <span class="location"><span class="cell-label">Location</span>{{.Location}}</span>
+                    <span><span class="cell-label">Status</span><span class="status-tag {{.StatusClass}}">{{.StatusLabel}}</span></span>
+                    <span class="applied-date">
+                      <span class="cell-label">Applied</span>
+                      {{.AppliedAtDisplay}}
                     </span>
-                    <span class="application-row-arrow" aria-hidden="true">→</span>
                   </button>
                 </li>
               {{end}}
             </ol>
 
+            <div class="table-empty application-empty" data-table-empty hidden>
+              <span aria-hidden="true">*</span>
+              <div>
+                <h3>No matching applications.</h3>
+                <p>Try a different search, location, or sort, or clear the current filters.</p>
+                <a href="/applications">Clear all filters</a>
+              </div>
+            </div>
+
             <footer class="panel-footer">
               <span>{{.FilterSummary}}</span>
-              <span>Sorted by newest added</span>
+              <span data-sort-label>Newest added first</span>
             </footer>
           {{else}}
             <div class="application-empty application-filter-empty">
@@ -163,11 +183,11 @@
                 {{if .TotalApplications}}
                   <h3>No matching applications.</h3>
                   <p>Try clearing a filter or choosing a different salary range.</p>
-                  <a href="/applications">Clear all filters →</a>
+                  <a href="/applications">Clear all filters</a>
                 {{else}}
                   <h3>No applications yet.</h3>
                   <p>Add an application from the dashboard to get started.</p>
-                  <a href="/">Return to dashboard →</a>
+                  <a href="/#add-application">Add an application</a>
                 {{end}}
               </div>
             </div>
@@ -184,6 +204,71 @@
   <datalist id="organization-options">
     {{range .OrganizationOptions}}<option value="{{.Name}}"></option>{{end}}
   </datalist>
+
+  <dialog class="application-dialog" id="application-dialog" aria-labelledby="application-dialog-title">
+    <section class="application-dialog-card">
+      <header class="application-dialog-header">
+        <div>
+          <p class="section-number">New record</p>
+          <h2 id="application-dialog-title">Add an application</h2>
+        </div>
+        <button class="dialog-close" type="button" aria-label="Close application form" data-close-application-dialog>×</button>
+      </header>
+      <form class="application-form" method="post" action="/applications">
+        <p class="application-form-intro">New applications start as <strong>Applied</strong>. You can add optional details now or later.</p>
+        <div class="application-form-grid">
+          <label class="form-field form-field-wide">
+            <span>Organization <small>Required</small></span>
+            <input type="text" name="organization_name" list="organization-options" autocomplete="organization" placeholder="e.g. Walmart" required autofocus>
+          </label>
+          <label class="form-field">
+            <span>Role title <small>Required</small></span>
+            <input type="text" name="role_title" autocomplete="off" placeholder="e.g. Software Engineer" required>
+          </label>
+          <label class="form-field">
+            <span>Work location <small>Required</small></span>
+            <select name="work_location" required>
+              <option value="" disabled selected>Select one</option>
+              <option value="remote">Remote</option>
+              <option value="local">Local</option>
+            </select>
+          </label>
+          <label class="form-field form-field-wide">
+            <span>Career portal URL <small>Optional</small></span>
+            <input type="url" name="careers_url" inputmode="url" placeholder="Organization's Career Portal link">
+          </label>
+          <label class="form-field form-field-wide">
+            <span>Posting URL <small>Optional</small></span>
+            <input type="url" name="posting_url" inputmode="url" placeholder="https://careers.example.com/jobs/123">
+          </label>
+          <label class="form-field salary-field">
+            <span>Salary minimum <small>Optional</small></span>
+            <input type="number" name="salary_min" min="0" step="1" inputmode="numeric" placeholder="90000">
+          </label>
+          <label class="form-field salary-field">
+            <span>Salary maximum <small>Optional</small></span>
+            <input type="number" name="salary_max" min="0" step="1" inputmode="numeric" placeholder="120000">
+          </label>
+          <label class="form-field">
+            <span>Applied date <small>Optional</small></span>
+            <input type="date" name="applied_at">
+          </label>
+          <label class="form-field form-field-wide">
+            <span>Notes <small>Optional</small></span>
+            <textarea name="notes" rows="3" placeholder="Referral, recruiter, next step…"></textarea>
+          </label>
+        </div>
+        <footer class="application-form-footer">
+          <p>Saved on this device.</p>
+          <div>
+            <button class="form-cancel" type="button" data-close-application-dialog>Cancel</button>
+            <button class="form-submit" type="submit">Save application</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  </dialog>
+
   {{template "application-detail-dialog" .}}
   {{template "settings-dialog" .Settings}}
 </body>
