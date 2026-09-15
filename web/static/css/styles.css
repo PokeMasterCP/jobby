@@ -1752,6 +1752,7 @@ a.metric:focus-visible {
 
   .sidebar {
     position: fixed;
+    top: auto;
     right: 0;
     bottom: 0;
     left: 0;
