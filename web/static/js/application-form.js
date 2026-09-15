@@ -33,9 +33,12 @@
       createDialog.showModal();
     });
 
-    if (createDialog.hasAttribute("data-open-on-load")) {
+    if (createDialog.hasAttribute("data-open-on-load") || location.hash === "#add-application") {
       createDialog.showModal();
       createDialog.querySelector('[aria-invalid="true"]')?.focus();
+      if (location.hash === "#add-application") {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
     }
 
     createDialog.querySelectorAll("[data-close-application-dialog]").forEach((button) => {
@@ -75,8 +78,24 @@
 
     const organizationRows = Array.from(document.querySelectorAll("[data-open-organization-detail]"));
     organizationRows.forEach((row) => {
-      row.addEventListener("click", () => {
+      const openFromRow = (event) => {
+        if (event.target.closest("[data-portal-link]")) {
+          return;
+        }
         openOrganization(row);
+      };
+      row.querySelector("[data-portal-link]")?.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+      row.addEventListener("click", openFromRow);
+      row.addEventListener("keydown", (event) => {
+        if (event.target.closest("[data-portal-link]")) {
+          return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openOrganization(row);
+        }
       });
     });
 
@@ -275,6 +294,7 @@
   let saving = false;
   openButton.addEventListener("click", () => {
     form.reset();
+    error.textContent = "";
     error.hidden = true;
     dialog.showModal();
   });
@@ -291,6 +311,7 @@
     saving = true;
     submit.disabled = true;
     submit.textContent = "Saving…";
+    error.textContent = "";
     error.hidden = true;
     try {
       const response = await fetch(form.action, {
