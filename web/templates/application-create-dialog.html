@@ -1,0 +1,89 @@
+{{define "create-dialog"}}
+<datalist id="organization-choices">
+  {{range .OrganizationChoices}}<option value="{{.Name}}" data-careers-url="{{.CareersURL}}"></option>{{end}}
+</datalist>
+
+<dialog class="modal" id="create-dialog" aria-labelledby="create-title" {{if .ApplicationForm.HasErrors}}data-open-on-load{{end}}>
+  <form class="modal-panel" method="post" action="/applications" data-create-form data-flash="Application added">
+    <input type="hidden" name="return_to" value="{{.ReturnPath}}">
+    <header class="modal-header">
+      <div>
+        <h2 id="create-title">New application</h2>
+        <p>Starts as <strong>Applied</strong>. Only organization, role, and location are required.</p>
+      </div>
+      <button class="icon-button" type="button" data-close aria-label="Close">{{template "icon" "x"}}</button>
+    </header>
+
+    <div class="modal-body">
+      {{with .ApplicationForm.GeneralError}}<p class="form-alert" role="alert">{{template "icon" "alert"}}{{.}}</p>{{end}}
+
+      <div class="form-grid">
+        <label class="field">
+          <span class="field-label">Organization</span>
+          <input type="text" name="organization_name" list="organization-choices" autocomplete="off" placeholder="e.g. Stripe" value="{{.ApplicationForm.OrganizationName}}" required data-organization-input {{if .ApplicationForm.OrganizationError}}aria-invalid="true" aria-describedby="create-organization-error"{{end}}>
+          {{with .ApplicationForm.OrganizationError}}<small class="field-error" id="create-organization-error">{{.}}</small>{{end}}
+          <small class="field-hint" data-portal-known hidden>{{template "icon" "check"}}<span></span></small>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Role title</span>
+          <input type="text" name="role_title" autocomplete="off" placeholder="e.g. Senior Software Engineer" value="{{.ApplicationForm.RoleTitle}}" required {{if .ApplicationForm.RoleTitleError}}aria-invalid="true" aria-describedby="create-role-title-error"{{end}}>
+          {{with .ApplicationForm.RoleTitleError}}<small class="field-error" id="create-role-title-error">{{.}}</small>{{end}}
+        </label>
+
+        <fieldset class="field">
+          <legend class="field-label">Work location</legend>
+          <div class="segmented" {{if .ApplicationForm.WorkLocationError}}aria-invalid="true"{{end}}>
+            <label><input type="radio" name="work_location" value="remote" required {{if eq .ApplicationForm.WorkLocation "remote"}}checked{{end}}><span>{{template "icon" "globe"}}Remote</span></label>
+            <label><input type="radio" name="work_location" value="local" {{if eq .ApplicationForm.WorkLocation "local"}}checked{{end}}><span>{{template "icon" "pin"}}Local</span></label>
+          </div>
+          {{with .ApplicationForm.WorkLocationError}}<small class="field-error">{{.}}</small>{{end}}
+        </fieldset>
+
+        <label class="field">
+          <span class="field-label">Applied on <small>Optional</small></span>
+          <input type="date" name="applied_at" value="{{.ApplicationForm.AppliedAt}}" data-default-today {{if .ApplicationForm.AppliedAtError}}aria-invalid="true" aria-describedby="create-applied-at-error"{{end}}>
+          {{with .ApplicationForm.AppliedAtError}}<small class="field-error" id="create-applied-at-error">{{.}}</small>{{end}}
+        </label>
+
+        <label class="field field-wide">
+          <span class="field-label">Job posting URL <small>Optional</small></span>
+          <input type="url" name="posting_url" inputmode="url" placeholder="https://" value="{{.ApplicationForm.PostingURL}}" {{if .ApplicationForm.PostingURLError}}aria-invalid="true" aria-describedby="create-posting-url-error"{{end}}>
+          {{with .ApplicationForm.PostingURLError}}<small class="field-error" id="create-posting-url-error">{{.}}</small>{{end}}
+        </label>
+
+        <label class="field field-wide" data-careers-field>
+          <span class="field-label">Career portal URL <small>Optional · saved to the organization</small></span>
+          <input type="url" name="careers_url" inputmode="url" placeholder="Where you check this organization's openings" value="{{.ApplicationForm.CareersURL}}" {{if .ApplicationForm.CareersURLError}}aria-invalid="true" aria-describedby="create-careers-url-error"{{end}}>
+          {{with .ApplicationForm.CareersURLError}}<small class="field-error" id="create-careers-url-error">{{.}}</small>{{end}}
+        </label>
+
+        <label class="field salary-input">
+          <span class="field-label">Salary from <small>Optional</small></span>
+          <span class="input-affix"><span aria-hidden="true">$</span><input type="number" name="salary_min" min="0" step="1" inputmode="numeric" placeholder="120000" value="{{.ApplicationForm.SalaryMin}}" {{if .ApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="create-salary-min-error"{{end}}></span>
+          {{with .ApplicationForm.SalaryMinError}}<small class="field-error" id="create-salary-min-error">{{.}}</small>{{end}}
+        </label>
+
+        <label class="field salary-input">
+          <span class="field-label">Salary to <small>Optional</small></span>
+          <span class="input-affix"><span aria-hidden="true">$</span><input type="number" name="salary_max" min="0" step="1" inputmode="numeric" placeholder="160000" value="{{.ApplicationForm.SalaryMax}}" {{if .ApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="create-salary-max-error"{{end}}></span>
+          {{with .ApplicationForm.SalaryMaxError}}<small class="field-error" id="create-salary-max-error">{{.}}</small>{{end}}
+        </label>
+
+        <label class="field field-wide">
+          <span class="field-label">Notes <small>Optional</small></span>
+          <textarea name="notes" rows="3" placeholder="Referral, recruiter name, next steps…">{{.ApplicationForm.Notes}}</textarea>
+        </label>
+      </div>
+    </div>
+
+    <footer class="modal-footer">
+      <span class="shortcut-hint"><kbd>⌘</kbd><kbd>Enter</kbd> to save</span>
+      <div class="modal-actions">
+        <button class="button button-ghost" type="button" data-close>Cancel</button>
+        <button class="button button-primary" type="submit">Save application</button>
+      </div>
+    </footer>
+  </form>
+</dialog>
+{{end}}
