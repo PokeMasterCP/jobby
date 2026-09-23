@@ -61,7 +61,7 @@ SELECT
         SELECT COUNT(*)
         FROM applications
         WHERE applications.organization_id = organizations.id
-            AND applications.status IN ('applied', 'in_contact')
+            AND applications.status IN ('applied', 'in_contact', 'offer')
     ) AS open_application_count
 FROM organizations
 ORDER BY organizations.name COLLATE NOCASE, organizations.id

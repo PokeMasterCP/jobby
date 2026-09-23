@@ -1,0 +1,155 @@
+{{define "application-drawer"}}
+<dialog class="drawer" id="application-drawer" aria-labelledby="drawer-title" {{if .EditApplicationForm.HasErrors}}data-open-on-load data-application-id="{{.SelectedApplicationID}}"{{end}}>
+  <div class="drawer-panel">
+    <header class="drawer-header">
+      <span class="org-mark org-mark-large" aria-hidden="true" data-field="mark"></span>
+      <div class="drawer-heading">
+        <a class="drawer-org" href="/applications" data-field="organization">{{.EditApplicationForm.OrganizationName}}</a>
+        <h2 id="drawer-title" data-field="role">{{.EditApplicationForm.RoleTitle}}</h2>
+      </div>
+      <button class="icon-button" type="button" data-close aria-label="Close details">{{template "icon" "x"}}</button>
+    </header>
+
+    <div class="drawer-body" data-drawer-view>
+      <form class="status-picker" method="post" data-status-form data-swap-form data-toast="Status updated">
+        <fieldset>
+          <legend>Status</legend>
+          <div class="status-options">
+            <label class="status-option status-applied"><input type="radio" name="status" value="applied"><span>Applied</span></label>
+            <label class="status-option status-contact"><input type="radio" name="status" value="in_contact"><span>Interviewing</span></label>
+            <label class="status-option status-offer"><input type="radio" name="status" value="offer"><span>Offer</span></label>
+            <label class="status-option status-rejected"><input type="radio" name="status" value="rejected_after_contact"><span>Rejected</span></label>
+            <label class="status-option status-closed"><input type="radio" name="status" value="rejected_no_contact"><span>No response</span></label>
+            <label class="status-option status-withdrawn"><input type="radio" name="status" value="withdrawn"><span>Withdrawn</span></label>
+          </div>
+        </fieldset>
+      </form>
+
+      <div class="drawer-actions">
+        <a class="button" href="#" target="_blank" rel="noreferrer" data-field="careers-link" data-portal-link>{{template "icon" "external"}}Career portal</a>
+        <a class="button" href="#" target="_blank" rel="noreferrer" data-field="posting-link">{{template "icon" "link"}}Job posting</a>
+        <form method="post" data-checked-form data-swap-form data-toast="Portal check recorded">
+          <button class="button button-check" type="submit">{{template "icon" "check"}}Mark checked</button>
+        </form>
+      </div>
+      <p class="callout" data-field="careers-missing" hidden>
+        {{template "icon" "link"}}<span>No career portal saved for this organization. <a href="/organizations" data-field="careers-missing-link">Add one</a> to make portal checks one click.</span>
+      </p>
+
+      <dl class="facts">
+        <div>
+          <dt>Salary</dt>
+          <dd><span class="salary"><span class="salary-value" data-field="salary"></span><span class="salary-mask" aria-label="Salary hidden">•••••</span></span></dd>
+        </div>
+        <div>
+          <dt>Location</dt>
+          <dd data-field="location"></dd>
+        </div>
+        <div>
+          <dt>Applied</dt>
+          <dd><span data-field="applied"></span><small data-field="applied-ago"></small></dd>
+        </div>
+        <div>
+          <dt>Status changed</dt>
+          <dd data-field="status-since"></dd>
+        </div>
+        <div class="facts-wide">
+          <dt>Last portal check</dt>
+          <dd>
+            <span data-field="last-checked"></span>
+            <span class="badge badge-due" data-field="due" hidden>{{template "icon" "clock"}}Due</span>
+            <small data-field="last-checked-detail"></small>
+          </dd>
+        </div>
+      </dl>
+
+      <section class="notes" aria-labelledby="drawer-notes-title">
+        <h3 id="drawer-notes-title">Notes</h3>
+        <p data-field="notes"></p>
+      </section>
+    </div>
+
+    <footer class="drawer-footer" data-drawer-view>
+      <form method="post" data-delete-form data-swap-form data-toast="Application deleted">
+        <button class="button button-ghost button-danger" type="submit" data-confirm="Click again to delete">{{template "icon" "trash"}}<span>Delete</span></button>
+      </form>
+      <button class="button" type="button" data-edit>{{template "icon" "pencil"}}Edit details</button>
+    </footer>
+
+    <form class="drawer-edit" method="post" data-edit-form data-flash="Changes saved" hidden>
+      <input type="hidden" name="return_to" value="{{.ReturnPath}}">
+      <div class="drawer-body">
+        {{with .EditApplicationForm.GeneralError}}<p class="form-alert" role="alert">{{template "icon" "alert"}}{{.}}</p>{{end}}
+        <div class="form-grid">
+          <label class="field field-wide">
+            <span class="field-label">Organization</span>
+            <input type="text" name="organization_name" list="organization-choices" autocomplete="off" value="{{.EditApplicationForm.OrganizationName}}" required {{if .EditApplicationForm.OrganizationError}}aria-invalid="true" aria-describedby="edit-organization-error"{{end}}>
+            {{with .EditApplicationForm.OrganizationError}}<small class="field-error" id="edit-organization-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="field field-wide">
+            <span class="field-label">Role title</span>
+            <input type="text" name="role_title" autocomplete="off" value="{{.EditApplicationForm.RoleTitle}}" required {{if .EditApplicationForm.RoleTitleError}}aria-invalid="true" aria-describedby="edit-role-title-error"{{end}}>
+            {{with .EditApplicationForm.RoleTitleError}}<small class="field-error" id="edit-role-title-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="field">
+            <span class="field-label">Status</span>
+            <select name="status" required {{if .EditApplicationForm.StatusError}}aria-invalid="true" aria-describedby="edit-status-error"{{end}}>
+              {{template "status-options" .EditApplicationForm.Status}}
+            </select>
+            {{with .EditApplicationForm.StatusError}}<small class="field-error" id="edit-status-error">{{.}}</small>{{end}}
+          </label>
+
+          <fieldset class="field">
+            <legend class="field-label">Work location</legend>
+            <div class="segmented" {{if .EditApplicationForm.WorkLocationError}}aria-invalid="true"{{end}}>
+              <label><input type="radio" name="work_location" value="remote" required {{if eq .EditApplicationForm.WorkLocation "remote"}}checked{{end}}><span>{{template "icon" "globe"}}Remote</span></label>
+              <label><input type="radio" name="work_location" value="local" {{if eq .EditApplicationForm.WorkLocation "local"}}checked{{end}}><span>{{template "icon" "pin"}}Local</span></label>
+            </div>
+            {{with .EditApplicationForm.WorkLocationError}}<small class="field-error">{{.}}</small>{{end}}
+          </fieldset>
+
+          <label class="field field-wide">
+            <span class="field-label">Job posting URL <small>Optional</small></span>
+            <input type="url" name="posting_url" inputmode="url" placeholder="https://" value="{{.EditApplicationForm.PostingURL}}" {{if .EditApplicationForm.PostingURLError}}aria-invalid="true" aria-describedby="edit-posting-url-error"{{end}}>
+            {{with .EditApplicationForm.PostingURLError}}<small class="field-error" id="edit-posting-url-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="field salary-input">
+            <span class="field-label">Salary from <small>Optional</small></span>
+            <span class="input-affix"><span aria-hidden="true">$</span><input type="number" name="salary_min" min="0" step="1" inputmode="numeric" value="{{.EditApplicationForm.SalaryMin}}" {{if .EditApplicationForm.SalaryMinError}}aria-invalid="true" aria-describedby="edit-salary-min-error"{{end}}></span>
+            {{with .EditApplicationForm.SalaryMinError}}<small class="field-error" id="edit-salary-min-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="field salary-input">
+            <span class="field-label">Salary to <small>Optional</small></span>
+            <span class="input-affix"><span aria-hidden="true">$</span><input type="number" name="salary_max" min="0" step="1" inputmode="numeric" value="{{.EditApplicationForm.SalaryMax}}" {{if .EditApplicationForm.SalaryMaxError}}aria-invalid="true" aria-describedby="edit-salary-max-error"{{end}}></span>
+            {{with .EditApplicationForm.SalaryMaxError}}<small class="field-error" id="edit-salary-max-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="field">
+            <span class="field-label">Applied on <small>Optional</small></span>
+            <input type="date" name="applied_at" value="{{.EditApplicationForm.AppliedAt}}" {{if .EditApplicationForm.AppliedAtError}}aria-invalid="true" aria-describedby="edit-applied-at-error"{{end}}>
+            {{with .EditApplicationForm.AppliedAtError}}<small class="field-error" id="edit-applied-at-error">{{.}}</small>{{end}}
+          </label>
+
+          <label class="field field-wide">
+            <span class="field-label">Notes <small>Optional</small></span>
+            <textarea name="notes" rows="5">{{.EditApplicationForm.Notes}}</textarea>
+          </label>
+        </div>
+        <p class="field-hint">The career portal link belongs to the organization. Change it from Organizations.</p>
+      </div>
+
+      <footer class="drawer-footer">
+        <span class="shortcut-hint"><kbd>⌘</kbd><kbd>Enter</kbd> to save</span>
+        <div class="modal-actions">
+          <button class="button button-ghost" type="button" data-cancel-edit>Cancel</button>
+          <button class="button button-primary" type="submit">Save changes</button>
+        </div>
+      </footer>
+    </form>
+  </div>
+</dialog>
+{{end}}

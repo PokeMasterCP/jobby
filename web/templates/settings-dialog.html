@@ -1,35 +1,54 @@
 {{define "settings-dialog"}}
-<dialog class="application-dialog settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
-  <section class="application-dialog-card">
-    <header class="application-dialog-header">
-      <h2 id="settings-title">Settings</h2>
-      <button class="dialog-close" type="button" data-close-settings aria-label="Close settings">×</button>
+<dialog class="modal modal-narrow" id="settings-dialog" aria-labelledby="settings-title">
+  <form class="modal-panel" method="post" action="/settings" data-settings-form>
+    <header class="modal-header">
+      <div>
+        <h2 id="settings-title">Settings</h2>
+        <p>Stored with your data on this device.</p>
+      </div>
+      <button class="icon-button" type="button" data-close aria-label="Close settings">{{template "icon" "x"}}</button>
     </header>
-    <form class="application-form" method="post" action="/settings" data-settings-form>
-      <p class="application-form-alert" role="alert" data-settings-error hidden></p>
-      <div class="application-form-grid">
-        <label class="form-field form-field-wide">
-          <span>Your name <small>Optional</small></span>
+
+    <div class="modal-body">
+      <p class="form-alert" role="alert" data-settings-error hidden></p>
+      <div class="form-grid form-grid-single">
+        <label class="field">
+          <span class="field-label">Your name <small>Optional · used for the greeting</small></span>
           <input name="name" autocomplete="given-name" maxlength="100" value="{{.Name}}">
         </label>
-        <label class="form-field form-field-wide">
-          <span>Check portals every (days)</span>
-          <input name="portal_check_days" type="number" min="1" max="365" step="1" required value="{{.PortalCheckDays}}" aria-describedby="portal-interval-help">
+
+        <label class="field">
+          <span class="field-label">Portal check interval</span>
+          <span class="input-affix input-affix-end"><input name="portal_check_days" type="number" min="1" max="365" step="1" required value="{{.PortalCheckDays}}" aria-describedby="portal-interval-help"><span aria-hidden="true">days</span></span>
+          <small class="field-hint" id="portal-interval-help">Open applications are due for a check this many days after the last one. Never-checked applications are always due.</small>
         </label>
-        <p id="portal-interval-help" class="application-form-intro form-field-wide">Open applications become due this many calendar days after their last portal check. Choose 1 for daily checks. Applications never checked are always due.</p>
-        <label class="salary-privacy-toggle form-field-wide">
-          <span>Hide salaries <small>Applies immediately in this browser.</small></span>
-          <input type="checkbox" role="switch" data-salary-privacy aria-label="Hide salaries">
+
+        <fieldset class="field">
+          <legend class="field-label">Appearance <small>This browser only · applies immediately</small></legend>
+          <div class="segmented">
+            <label><input type="radio" name="theme" value="system" data-theme-choice checked><span>{{template "icon" "monitor"}}System</span></label>
+            <label><input type="radio" name="theme" value="light" data-theme-choice><span>{{template "icon" "sun"}}Light</span></label>
+            <label><input type="radio" name="theme" value="dark" data-theme-choice><span>{{template "icon" "moon"}}Dark</span></label>
+          </div>
+        </fieldset>
+
+        <label class="switch-row">
+          <span>
+            <strong>Hide salaries</strong>
+            <small>Masks salary amounts in this browser — handy when screen sharing. Applies immediately.</small>
+          </span>
+          <input class="switch" type="checkbox" role="switch" data-salary-privacy>
         </label>
       </div>
-      <footer class="application-form-footer">
-        <p>Applies to all your applications.</p>
-        <div>
-          <button class="form-cancel" type="button" data-close-settings>Cancel</button>
-          <button class="form-submit" type="submit">Save settings</button>
-        </div>
-      </footer>
-    </form>
-  </section>
+    </div>
+
+    <footer class="modal-footer">
+      <span></span>
+      <div class="modal-actions">
+        <button class="button button-ghost" type="button" data-close>Cancel</button>
+        <button class="button button-primary" type="submit">Save settings</button>
+      </div>
+    </footer>
+  </form>
 </dialog>
 {{end}}

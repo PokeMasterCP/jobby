@@ -6,14 +6,15 @@ The application is intentionally designed for one person running it on their own
 
 ## Features
 
-- Track open and closed job applications.
-- Record salary ranges, work location, application dates, links, and notes.
-- Move applications through applied, in-contact, accepted, and rejected states.
-- Change an application's status directly from its summary.
-- Track the last career-portal check using Today, Yesterday, and relative-day labels.
+- A **Today** view that leads with what needs doing: open applications due for a portal check (with one-click "open portal" and "mark checked"), active conversations, and recently added applications, alongside pipeline counts and search activity.
+- Track open and closed job applications with salary ranges, work location, application dates, links, and notes.
+- Move applications through Applied, Interviewing, and Offer, or close them as Rejected, No response, or Withdrawn, from a details panel; status changes and portal checks update the page in place.
+- Search, filter by status, salary, and organization, and sort the full application list.
 - Surface open applications due for a portal check using your chosen interval (seven days by default).
-- Set your name and portal-check interval from Settings in the sidebar.
-- Reuse organizations across applications and maintain their career-portal URLs.
+- Reuse organizations across applications and maintain their career-portal URLs; the directory flags organizations with open applications but no portal link.
+- Hide salary amounts with one click for screen sharing.
+- Keyboard shortcuts: <kbd>N</kbd> for a new application, <kbd>/</kbd> to search, <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to save a dialog.
+- Light and dark themes: follow the system setting or pick one under Settings → Appearance. The layout also works on phones.
 - Store all data locally in SQLite.
 
 ## Technology
@@ -78,7 +79,9 @@ The sidebar Settings dialog saves your optional name and a portal-check interval
 
 `POST /settings` accepts `name` (up to 100 characters) and `portal_check_days`. It returns `204` on success or `422` for invalid values. The dialog reloads the current page after saving, preserving application filters.
 
-The Settings dialog also includes **Hide salaries**, an immediate display preference remembered in the current browser. It masks salary amounts and editable salary fields without changing stored values. This is visual masking for screen sharing, not access control; values remain in the page data.
+The Settings dialog also has an **Appearance** choice (System, Light, or Dark), remembered in the current browser and applied immediately. System follows the operating system and updates when it changes.
+
+The Settings dialog, and the eye button in the sidebar, include **Hide salaries**, an immediate display preference remembered in the current browser. It masks salary amounts and editable salary fields without changing stored values. This is visual masking for screen sharing, not access control; values remain in the page data.
 
 ### Route summary
 
@@ -86,14 +89,26 @@ The Settings dialog also includes **Hide salaries**, an immediate display prefer
 | --- | --- | --- | --- |
 | `GET` | `/` | Render the search overview | `200` HTML |
 | `POST` | `/settings` | Save name and portal-check interval | `204` |
-| `GET` | `/applications` | Render all applications with optional status, income, and organization filters | `200` HTML |
+| `GET` | `/applications` | Render applications with optional `status`, `income`, `organization`, `sort`, and `q` parameters | `200` HTML |
 | `GET` | `/organizations` | Render the organization directory and editor dialog | `200` HTML |
 | `POST` | `/organizations/{id}` | Update an organization | `303` to `/organizations?saved={id}` |
-| `POST` | `/applications` | Create an application | `303` to `/` |
-| `POST` | `/applications/{id}` | Replace an application's editable fields | `303` to `/#applications` |
-| `POST` | `/applications/{id}/status` | Change only an application's status | `303` to `/#applications` |
-| `POST` | `/applications/{id}/checked` | Set the last-checked timestamp to now | `303` to `/#applications` |
-| `POST` | `/applications/{id}/delete` | Delete an application | `303` to `/#applications` |
+| `POST` | `/applications` | Create an application | `303` to the applications page or `/` |
+| `POST` | `/applications/{id}` | Replace an application's editable fields | `303` to the applications page or `/` |
+| `POST` | `/applications/{id}/status` | Change only an application's status | `303` to the applications page or `/` |
+| `POST` | `/applications/{id}/checked` | Set the last-checked timestamp to now | `303` to the applications page or `/` |
+| `POST` | `/applications/{id}/delete` | Delete an application | `303` to the applications page or `/` |
+
+Application mutations return to the applications page, with its filters, when the form's `return_to` field or the `Referer` header points there. Otherwise they return to `/`. The status, checked, and delete actions are submitted in the background by the GUI, which replaces the page content with the redirected view.
+
+### Application list parameters
+
+| Parameter | Values |
+| --- | --- |
+| `status` | `open` (applied, interviewing, or offer), `closed` (rejected, no response, or withdrawn), or any single status value |
+| `income` | `listed`, or `75000`, `100000`, `125000`, `150000` to require a range that reaches the amount |
+| `organization` | An organization ID |
+| `sort` | Omitted for newest added, `applied` for applied date, `salary` for highest salary maximum, `checked` for longest since the last portal check |
+| `q` | Up to 100 characters; every word must appear in the organization, role, or notes |
 
 Route IDs must be positive integers.
 
@@ -116,15 +131,18 @@ The create and full-update requests use the following fields:
 
 Allowed application statuses are:
 
-| Value | Meaning |
-| --- | --- |
-| `applied` | Applied and awaiting contact |
-| `in_contact` | Actively communicating with the organization |
-| `accepted` | Offer accepted |
-| `rejected_after_contact` | Rejected after communication or interviews |
-| `rejected_no_contact` | Rejected without direct contact |
+| Value | Label | Meaning | Stage |
+| --- | --- | --- | --- |
+| `applied` | Applied | Applied and awaiting contact | Open, portal checks due |
+| `in_contact` | Interviewing | Talking with the organization | Open, portal checks due |
+| `offer` | Offer | Received an offer | Open, no portal checks |
+| `rejected_after_contact` | Rejected | Rejected after communication or interviews | Closed |
+| `rejected_no_contact` | No response | Rejected without contact, or never heard back | Closed |
+| `withdrawn` | Withdrawn | You withdrew, declined an offer, or the posting closed | Closed |
 
-The dashboard shows the five most recent `applied` and `in_contact` applications. The applications page includes all statuses.
+Migration `00003` replaced the former `accepted` status with `offer` and added `withdrawn`. Existing `accepted` rows become `offer`. Rolling it back turns `offer` into `accepted` and `withdrawn` into `rejected_no_contact`.
+
+The Today view lists every open application due for a portal check, every offer and interviewing application (offers first, then the longest since their status changed), and the five most recently added applications of any status. The applications page includes all statuses.
 
 ### Create an application
 

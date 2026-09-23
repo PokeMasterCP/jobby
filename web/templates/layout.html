@@ -1,0 +1,142 @@
+{{define "shell-start"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Jobby is a private, local-first workspace for managing a job search.">
+  <title>{{if eq .Page "applications"}}Applications{{else if eq .Page "organizations"}}Organizations{{else}}Today{{end}} · Jobby</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%235b4bdb'/%3E%3Cpath d='M19 9v10a4 4 0 0 1-8 0' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <script src="/static/js/preferences.js?v=3"></script>
+  <link rel="stylesheet" href="/static/css/styles.css?v=3">
+  <script src="/static/js/app.js?v=3" defer></script>
+</head>
+<body data-page="{{.Page}}">
+{{template "icons"}}
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Jobby, go to Today">{{template "logo"}}<span>Jobby</span></a>
+
+    <button class="button button-primary button-block new-button" type="button" data-open-create aria-haspopup="dialog">
+      {{template "icon" "plus"}}<span>New application</span><kbd aria-hidden="true">N</kbd>
+    </button>
+
+    {{template "nav" .}}
+
+    <div class="sidebar-footer">
+      <button class="nav-item" type="button" data-toggle-salaries aria-pressed="false">
+        <svg class="icon icon-when-off" aria-hidden="true"><use href="#i-eye"></use></svg>
+        <svg class="icon icon-when-on" aria-hidden="true"><use href="#i-eye-off"></use></svg>
+        <span data-salary-toggle-label>Hide salaries</span>
+      </button>
+      <button class="nav-item" type="button" data-open-settings aria-haspopup="dialog">{{template "icon" "settings"}}<span>Settings</span></button>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Jobby, go to Today">{{template "logo"}}<span>Jobby</span></a>
+      <div class="topbar-actions">
+        <button class="icon-button" type="button" data-toggle-salaries aria-pressed="false" aria-label="Hide salaries">
+          <svg class="icon icon-when-off" aria-hidden="true"><use href="#i-eye"></use></svg>
+          <svg class="icon icon-when-on" aria-hidden="true"><use href="#i-eye-off"></use></svg>
+        </button>
+        <button class="icon-button" type="button" data-open-settings aria-haspopup="dialog" aria-label="Settings">{{template "icon" "settings"}}</button>
+        <button class="button button-primary button-small" type="button" data-open-create aria-haspopup="dialog">{{template "icon" "plus"}}New</button>
+      </div>
+    </header>
+{{end}}
+
+{{define "shell-end"}}
+  </div>
+</div>
+
+{{template "mobile-nav" .}}
+{{template "create-dialog" .}}
+{{template "settings-dialog" .Settings}}
+<div class="toast-region" popover="manual" aria-live="polite" data-toasts></div>
+</body>
+</html>
+{{end}}
+
+{{define "nav"}}
+<nav class="nav" aria-label="Primary" data-swap="nav">
+  <a class="nav-item" href="/" {{if eq .Page "dashboard"}}aria-current="page"{{end}}>
+    {{template "icon" "today"}}<span>Today</span>
+    {{if .DueCount}}<span class="nav-badge is-due" title="{{.DueCount}} portal {{if eq .DueCount 1}}check{{else}}checks{{end}} due">{{.DueCount}}</span>{{end}}
+  </a>
+  <a class="nav-item" href="/applications" {{if eq .Page "applications"}}aria-current="page"{{end}}>
+    {{template "icon" "briefcase"}}<span>Applications</span><span class="nav-badge">{{.ApplicationCount}}</span>
+  </a>
+  <a class="nav-item" href="/organizations" {{if eq .Page "organizations"}}aria-current="page"{{end}}>
+    {{template "icon" "building"}}<span>Organizations</span><span class="nav-badge">{{.OrganizationCount}}</span>
+  </a>
+</nav>
+{{end}}
+
+{{define "mobile-nav"}}
+<nav class="mobile-nav" aria-label="Primary" data-swap="mobile-nav">
+  <a href="/" {{if eq .Page "dashboard"}}aria-current="page"{{end}}>
+    <span class="mobile-nav-icon">{{template "icon" "today"}}{{if .DueCount}}<span class="mobile-nav-dot" aria-label="{{.DueCount}} due"></span>{{end}}</span>Today
+  </a>
+  <a href="/applications" {{if eq .Page "applications"}}aria-current="page"{{end}}>
+    <span class="mobile-nav-icon">{{template "icon" "briefcase"}}</span>Applications
+  </a>
+  <a href="/organizations" {{if eq .Page "organizations"}}aria-current="page"{{end}}>
+    <span class="mobile-nav-icon">{{template "icon" "building"}}</span>Organizations
+  </a>
+</nav>
+{{end}}
+
+{{define "icon"}}<svg class="icon" aria-hidden="true"><use href="#i-{{.}}"></use></svg>{{end}}
+
+{{define "logo"}}<svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9"></rect><path d="M19 9v10a4 4 0 0 1-8 0"></path></svg>{{end}}
+
+{{define "status-pill"}}<span class="pill {{.StatusClass}}">{{.StatusLabel}}</span>{{end}}
+
+{{define "org-mark"}}<span class="org-mark {{.OrganizationMark}}" aria-hidden="true">{{.OrganizationInitial}}</span>{{end}}
+
+{{define "salary"}}{{if eq . "Not listed"}}<span class="muted" title="Salary not listed">—</span>{{else}}<span class="salary"><span class="salary-value">{{.}}</span><span class="salary-mask" aria-label="Salary hidden">•••••</span></span>{{end}}{{end}}
+
+{{define "status-options"}}
+<option value="applied" {{if eq . "applied"}}selected{{end}}>Applied</option>
+<option value="in_contact" {{if eq . "in_contact"}}selected{{end}}>Interviewing</option>
+<option value="offer" {{if eq . "offer"}}selected{{end}}>Offer</option>
+<option value="rejected_after_contact" {{if eq . "rejected_after_contact"}}selected{{end}}>Rejected</option>
+<option value="rejected_no_contact" {{if eq . "rejected_no_contact"}}selected{{end}}>No response</option>
+<option value="withdrawn" {{if eq . "withdrawn"}}selected{{end}}>Withdrawn</option>
+{{end}}
+
+{{define "icons"}}
+<svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-today" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7M3 13h18"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M4.5 20.5v-15a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v15M15.5 9.5h2a2 2 0 0 1 2 2v9M2.5 20.5h19M8.5 7.5h3M8.5 11.5h3M8.5 15.5h3"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M17.5 6.5l-11 11M6.5 6.5l11 11"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M19.5 6.5 9 17l-4.5-4.5"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.2 12.3 2.6 2.6 5-5.6"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18.5 14v4.5a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 18.5V7a1.5 1.5 0 0 1 1.5-1.5H10"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16M10.5 5.7A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16.5 16.5 0 0 1-2.9 3.7M6.6 6.9C4 8.6 2.5 12 2.5 12S6 18.5 12 18.5c1.7 0 3.2-.5 4.5-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M15.5 4.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6.5h16M9.5 6.5V4.5h5v2M6.5 6.5l.9 12.6a1.5 1.5 0 0 0 1.5 1.4h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21Z"/><circle cx="12" cy="10.5" r="2.3"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1-4.4A8.5 8.5 0 1 1 20.5 12Z"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.3v.2"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.5 13.5 6 5.5h12l2.5 8v5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5Z"/><path d="M3.5 13.5H8l1.5 2.5h5l1.5-2.5h4.5"/></symbol>
+</svg>
+{{end}}

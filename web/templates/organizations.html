@@ -1,149 +1,88 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Review and maintain every organization saved in Jobby.">
-  <title>Jobby — Organizations</title>
-  <script src="/static/js/salary-privacy.js?v=1"></script>
-  <link rel="stylesheet" href="/static/css/styles.css?v=salary-privacy">
-  <script src="/static/js/application-form.js?v=salary-privacy" defer></script>
-</head>
-<body class="organizations-index-page">
-  <a class="skip-link" href="#main-content">Skip to content</a>
-
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div>
-        <a class="wordmark" href="/" aria-label="Jobby dashboard">Jobby<span aria-hidden="true">*</span></a>
-      </div>
-
-      <nav class="primary-nav" aria-label="Primary navigation">
-        <a href="/">
-          <span aria-hidden="true">▦</span>
-          Dashboard
-        </a>
-        <a href="/applications">
-          <span aria-hidden="true">◎</span>
-          Applications
-          <small>{{.TotalApplications}}</small>
-        </a>
-        <a class="active" href="/organizations" aria-current="page">
-          <span aria-hidden="true">◇</span>
-          Organizations
-          <small>{{.TotalOrganizations}}</small>
-        </a>
-        <button class="settings-nav-button" type="button" data-open-settings aria-haspopup="dialog"><span aria-hidden="true">⚙</span> Settings</button>
-      </nav>
-    </aside>
-
-    <div class="workspace">
-      <header class="mobile-header">
-        <a class="wordmark" href="/">Jobby<span aria-hidden="true">*</span></a>
-        <a class="mobile-overview-link" href="/">Dashboard →</a>
-      </header>
-
-      <main class="organizations-index-main" id="main-content">
-        <header class="applications-index-header organizations-index-header">
-          <div>
-            <h1>Organizations</h1>
-          </div>
-          <aside class="archive-tally organization-tally" aria-label="Organization total">
-            <p>Total organizations</p>
-            <strong>{{.TotalOrganizations}}</strong>
-            <span>{{if eq .TotalOrganizations 1}}organization{{else}}organizations{{end}} recorded</span>
-          </aside>
-        </header>
-
-        <section class="organization-snapshot" aria-label="Organization summary">
-          <article>
-            <span>Applications linked</span>
-            <strong>{{.TotalApplications}}</strong>
-          </article>
-          <article>
-            <span>Open applications</span>
-            <strong>{{.OpenApplications}}</strong>
-          </article>
-          <article>
-            <span>Career portals saved</span>
-            <strong>{{.WithCareerPortal}}<small> / {{.TotalOrganizations}}</small></strong>
-          </article>
-        </section>
-
-        <section class="panel application-archive-panel organization-archive-panel" aria-labelledby="organization-archive-title">
-          <header class="panel-header">
-            <div>
-              <h2 id="organization-archive-title">Your organizations</h2>
-            </div>
-            <span class="archive-result-count">{{.TotalOrganizations}} shown</span>
-          </header>
-
-          {{if .Organizations}}
-            <div class="organization-labels" aria-hidden="true">
-              <span>Organization</span>
-              <span>Applications</span>
-              <span>Open</span>
-              <span>Career portal</span>
-              <span>Last updated</span>
-            </div>
-
-            <ol class="organization-list">
-              {{range .Organizations}}
-                <li>
-                  <button
-                    class="organization-row"
-                    type="button"
-                    aria-haspopup="dialog"
-                    data-open-organization-detail
-                    data-organization-id="{{.ID}}"
-                    data-organization-name="{{.Name}}"
-                    data-careers-url="{{.CareersURL}}"
-                    data-application-count="{{.ApplicationCount}}"
-                    data-open-application-count="{{.OpenApplicationCount}}"
-                  >
-                    <span class="application-identity">
-                      <span class="org-mark {{.Mark}}">{{.Initial}}</span>
-                      <span>
-                        <strong>{{.Name}}</strong>
-                      </span>
-                    </span>
-                    <span class="organization-count"><strong>{{.ApplicationCount}}</strong> {{if eq .ApplicationCount 1}}application{{else}}applications{{end}}</span>
-                    <span class="organization-open-count"><strong>{{.OpenApplicationCount}}</strong> active</span>
-                    <span class="organization-portal{{if .CareersURL}} has-portal{{end}}">
-                      <i aria-hidden="true"></i>
-                      {{.PortalLabel}}
-                    </span>
-                    <span class="organization-updated">{{.UpdatedAt}}</span>
-                    <span class="organization-row-action" aria-hidden="true">→</span>
-                  </button>
-                </li>
-              {{end}}
-            </ol>
-
-            <footer class="panel-footer">
-              <span>Showing all {{.TotalOrganizations}} {{if eq .TotalOrganizations 1}}organization{{else}}organizations{{end}}</span>
-              <span>Select an organization to edit</span>
-            </footer>
-          {{else}}
-            <div class="application-empty organization-empty">
-              <span aria-hidden="true">◇</span>
-              <div>
-                <h3>No organizations yet.</h3>
-                <p>Add your first application from the dashboard. Its organization will be added to this directory automatically.</p>
-                <a href="/">Return to dashboard →</a>
-              </div>
-            </div>
-            <footer class="panel-footer">
-              <span>No organizations added</span>
-              <span>0 organizations</span>
-            </footer>
-          {{end}}
-        </section>
-      </main>
+{{template "shell-start" .}}
+<main class="main" id="main-content" data-swap="main">
+  <header class="page-header">
+    <div>
+      <h1>Organizations</h1>
+      <p class="page-summary">{{.OrganizationCount}} {{if eq .OrganizationCount 1}}organization{{else}}organizations{{end}} <span aria-hidden="true">·</span> {{.WithCareerPortal}} with a saved career portal <span aria-hidden="true">·</span> {{.OpenApplications}} open {{if eq .OpenApplications 1}}application{{else}}applications{{end}}</p>
     </div>
-  </div>
+  </header>
 
-  {{template "organization-detail-dialog" .}}
-  {{template "settings-dialog" .Settings}}
-</body>
-</html>
+  {{if .Organizations}}
+    <div class="toolbar">
+      <label class="search">
+        {{template "icon" "search"}}
+        <input type="search" placeholder="Search organizations" aria-label="Search organizations" autocomplete="off" data-search-input>
+        <kbd aria-hidden="true">/</kbd>
+      </label>
+    </div>
+  {{end}}
+
+  <section class="card table-card" aria-label="Organizations">
+    {{if .Organizations}}
+      <div class="table-head org-table-head" aria-hidden="true">
+        <span>Organization</span>
+        <span>Applications</span>
+        <span>Career portal</span>
+        <span></span>
+      </div>
+      <ol class="list org-table">
+        {{range .Organizations}}
+          <li class="list-row org-row" data-search-item data-search-text="{{.Name}}" data-organization-row="{{.ID}}">
+            <button
+              class="row-link"
+              type="button"
+              aria-haspopup="dialog"
+              data-open-organization
+              data-organization-id="{{.ID}}"
+              data-organization-name="{{.Name}}"
+              data-organization-initial="{{.Initial}}"
+              data-organization-mark="{{.Mark}}"
+              data-careers-url="{{.CareersURL}}"
+              data-application-count="{{.ApplicationCount}}"
+              data-open-application-count="{{.OpenApplicationCount}}"
+            >
+              <span class="org-mark {{.Mark}}" aria-hidden="true">{{.Initial}}</span>
+              <span class="row-title"><strong>{{.Name}}</strong><span>{{.UpdatedAt}}</span></span>
+            </button>
+            <span class="cell">
+              {{if .ApplicationCount}}
+                <a class="count-link" href="/applications?organization={{.ID}}">{{.ApplicationCount}} {{if eq .ApplicationCount 1}}application{{else}}applications{{end}}</a>
+                {{if .OpenApplicationCount}}<span class="pill status-applied pill-quiet">{{.OpenApplicationCount}} open</span>{{end}}
+              {{else}}
+                <span class="muted">None yet</span>
+              {{end}}
+            </span>
+            <span class="cell">
+              {{if .CareersURL}}
+                <a class="portal-link" href="{{.CareersURL}}" target="_blank" rel="noreferrer">{{template "icon" "external"}}<span>{{.PortalLabel}}</span></a>
+              {{else if .OpenApplicationCount}}
+                <span class="missing-portal is-needed">{{template "icon" "alert"}}Add a portal link</span>
+              {{else}}
+                <span class="missing-portal">Not saved</span>
+              {{end}}
+            </span>
+            <span class="cell cell-end" aria-hidden="true"><span class="row-edit">{{template "icon" "pencil"}}Edit</span></span>
+          </li>
+        {{end}}
+      </ol>
+      <div class="empty-state" data-search-empty hidden>
+        <span class="empty-icon">{{template "icon" "search"}}</span>
+        <h3>No matches</h3>
+        <p>No organization matches “<span data-search-term></span>”.</p>
+      </div>
+      <footer class="card-footer">
+        <span><span data-search-count>{{.OrganizationCount}}</span> of {{.OrganizationCount}} shown</span>
+        <span class="shortcut-hint">Organizations are created automatically when you add an application</span>
+      </footer>
+    {{else}}
+      <div class="empty-state">
+        <span class="empty-icon">{{template "icon" "building"}}</span>
+        <h3>No organizations yet</h3>
+        <p>Organizations are added automatically when you track an application.</p>
+        <button class="button button-primary" type="button" data-open-create>{{template "icon" "plus"}}New application</button>
+      </div>
+    {{end}}
+  </section>
+</main>
+{{template "organization-detail-dialog" .}}
+{{template "shell-end" .}}
