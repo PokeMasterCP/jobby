@@ -3,59 +3,100 @@
   <header class="page-header">
     <div>
       <p class="eyebrow">{{.TodayLabel}}</p>
-      <h1>{{.Greeting}}</h1>
-      <p class="page-summary">
-        {{if .DueCount}}<strong>{{.DueCount}} portal {{if eq .DueCount 1}}check{{else}}checks{{end}} due</strong>{{else}}Portal checks are up to date{{end}}
-        <span aria-hidden="true">·</span> {{.InContactCount}} interviewing{{if .OfferCount}} <span aria-hidden="true">·</span> <strong>{{.OfferCount}} {{if eq .OfferCount 1}}offer{{else}}offers{{end}}</strong>{{end}}
-        <span aria-hidden="true">·</span> {{.ApplicationsLast7}} sent in the last 7 days
-      </p>
+      <h1>{{.Greeting}}.</h1>
+      {{if .ApplicationCount}}
+        <p class="lede">
+          {{if .DueCount}}<strong class="is-due">{{.DueCount}} {{if eq .DueCount 1}}portal{{else}}portals{{end}} to check</strong>{{else}}Every portal is checked{{end}},
+          {{if .InContactCount}}<strong>{{.InContactCount}} {{if eq .InContactCount 1}}conversation{{else}}conversations{{end}}</strong> going{{else}}no conversations yet{{end}}{{if .OfferCount}}, and <strong>{{.OfferCount}} {{if eq .OfferCount 1}}offer{{else}}offers{{end}}</strong> on the table{{end}}.
+          {{if .ApplicationsLast7}}{{.ApplicationsLast7}} sent in the last 7 days.{{else}}Nothing sent in the last 7 days.{{end}}
+        </p>
+      {{end}}
     </div>
   </header>
 
-  <nav class="pipeline" aria-label="Pipeline by status">
-    <a class="stage status-applied" href="/applications?status=applied">
-      <span class="stage-label">Applied</span>
-      <strong>{{.AppliedCount}}</strong>
-      <span class="stage-meta">Waiting to hear back</span>
-    </a>
-    <a class="stage status-contact" href="/applications?status=in_contact">
-      <span class="stage-label">Interviewing</span>
-      <strong>{{.InContactCount}}</strong>
-      <span class="stage-meta">Talking with the team</span>
-    </a>
-    <a class="stage status-offer" href="/applications?status=offer">
-      <span class="stage-label">Offer</span>
-      <strong>{{.OfferCount}}</strong>
-      <span class="stage-meta">Waiting on your decision</span>
-    </a>
-    <a class="stage status-closed" href="/applications?status=closed">
-      <span class="stage-label">Closed</span>
-      <strong>{{.ClosedCount}}</strong>
-      <span class="stage-meta" title="{{.RejectedAfterContactCount}} rejected · {{.RejectedNoContactCount}} no response · {{.WithdrawnCount}} withdrawn">Rejected, no response, or withdrawn</span>
-    </a>
-  </nav>
+  {{if .ApplicationCount}}
+  <section class="ledger" aria-label="Pipeline by status">
+    <div class="ledger-stages">
+      <a class="ledger-stage status-applied" href="/applications?status=applied">
+        <span class="ledger-label">Applied</span>
+        <strong>{{.AppliedCount}}</strong>
+        <span class="ledger-meta">Waiting to hear back</span>
+      </a>
+      <a class="ledger-stage status-contact" href="/applications?status=in_contact">
+        <span class="ledger-label">Interviewing</span>
+        <strong>{{.InContactCount}}</strong>
+        <span class="ledger-meta">Talking with the team</span>
+      </a>
+      <a class="ledger-stage status-offer" href="/applications?status=offer">
+        <span class="ledger-label">Offer</span>
+        <strong>{{.OfferCount}}</strong>
+        <span class="ledger-meta">Waiting on your decision</span>
+      </a>
+      <a class="ledger-stage status-closed" href="/applications?status=closed">
+        <span class="ledger-label">Closed</span>
+        <strong>{{.ClosedCount}}</strong>
+        <span class="ledger-meta">{{.RejectedAfterContactCount}} rejected · {{.RejectedNoContactCount}} no response · {{.WithdrawnCount}} withdrawn</span>
+      </a>
+    </div>
+    <div class="stack-bar" role="img" aria-label="All {{.ApplicationCount}} applications by status">
+      {{if .AppliedCount}}<span class="status-applied" style="--n: {{.AppliedCount}}" title="Applied: {{.AppliedCount}}"></span>{{end}}
+      {{if .InContactCount}}<span class="status-contact" style="--n: {{.InContactCount}}" title="Interviewing: {{.InContactCount}}"></span>{{end}}
+      {{if .OfferCount}}<span class="status-offer" style="--n: {{.OfferCount}}" title="Offer: {{.OfferCount}}"></span>{{end}}
+      {{if .RejectedAfterContactCount}}<span class="status-rejected" style="--n: {{.RejectedAfterContactCount}}" title="Rejected: {{.RejectedAfterContactCount}}"></span>{{end}}
+      {{if .RejectedNoContactCount}}<span class="status-closed" style="--n: {{.RejectedNoContactCount}}" title="No response: {{.RejectedNoContactCount}}"></span>{{end}}
+      {{if .WithdrawnCount}}<span class="status-withdrawn" style="--n: {{.WithdrawnCount}}" title="Withdrawn: {{.WithdrawnCount}}"></span>{{end}}
+    </div>
+  </section>
+  {{end}}
 
+  {{if not .ApplicationCount}}
+    <section class="panel welcome">
+      <span class="empty-icon">{{template "icon" "inbox"}}</span>
+      <h2>Start your search journal</h2>
+      <p>Add the first role you applied for. Jobby will tell you when to check each career portal, track every conversation, and keep your pipeline in view.</p>
+      <button class="button button-primary" type="button" data-open-create>{{template "icon" "plus"}}New application<kbd aria-hidden="true">N</kbd></button>
+    </section>
+  {{else}}
   <div class="dashboard">
     <div class="dashboard-main">
-      <section class="card" aria-labelledby="due-title">
-        <header class="card-header">
+      <section class="panel" aria-labelledby="round-title">
+        <header class="panel-header">
           <div>
-            <h2 id="due-title">Portal checks</h2>
-            <p>Open applications are due every {{if eq .Settings.PortalCheckDays 1}}day{{else}}{{.Settings.PortalCheckDays}} days{{end}}. Open the portal, then mark it checked.</p>
+            <p class="kicker">Daily round</p>
+            <h2 id="round-title">Portal checks</h2>
+            <p>Due every {{if eq .Settings.PortalCheckDays 1}}day{{else}}{{.Settings.PortalCheckDays}} days{{end}}. Open the portal, look for news, then mark it checked.</p>
           </div>
-          {{if .DueApplications}}<span class="badge badge-due">{{template "icon" "clock"}}{{len .DueApplications}} due</span>{{end}}
+          {{if .RoundTotal}}
+            <div class="round-progress">
+              <span class="round-count"><strong>{{.CheckedTodayCount}}</strong> of {{.RoundTotal}}</span>
+              <span class="progress" role="progressbar" aria-label="Portal checks done today" aria-valuemin="0" aria-valuemax="{{.RoundTotal}}" aria-valuenow="{{.CheckedTodayCount}}"><i style="--v: {{.RoundPercent}}%"></i></span>
+              <small>done today</small>
+            </div>
+          {{end}}
         </header>
 
         {{if .DueApplications}}
-          <ul class="list">
+          {{if .QuietDueCount}}
+            <p class="panel-note">{{template "icon" "archive"}}<span><strong>{{.QuietDueCount}} of these</strong> {{if eq .QuietDueCount 1}}was{{else}}were{{end}} sent {{.Settings.QuietAfterDays}}+ days ago and never got a reply. Close them as <em>No response</em> to keep your round short.</span></p>
+          {{end}}
+          <ol class="list round-list">
             {{range .DueApplications}}{{with .Application}}
-              <li class="list-row task-row">
+              <li class="list-row round-row{{if .IsQuiet}} is-quiet{{end}}">
                 <button class="row-link" type="button" aria-haspopup="dialog" {{template "application-data" .}}>
                   {{template "org-mark" .}}
                   <span class="row-title"><strong>{{.OrganizationName}}</strong><span>{{.RoleTitle}}</span></span>
                 </button>
-                <span class="task-age">{{if eq .LastChecked "Never checked"}}Never checked{{else}}Checked {{.LastChecked}}{{end}}</span>
+                <span class="round-meta">
+                  <span><small>Last check</small>{{if eq .LastChecked "Never checked"}}Never{{else}}{{.LastChecked}}{{end}}</span>
+                  <span class="{{if .IsQuiet}}is-quiet{{end}}"><small>Sent</small>{{.AppliedAgo}}</span>
+                </span>
                 <span class="row-actions">
+                  {{if .IsQuiet}}
+                    <form method="post" action="/applications/{{.ID}}/status" data-swap-form data-toast="{{.OrganizationName}} closed as no response">
+                      <input type="hidden" name="status" value="rejected_no_contact">
+                      <button class="button button-small button-ghost" type="submit" title="Close as No response" aria-label="Close {{.OrganizationName}} as no response">{{template "icon" "archive"}}<span class="hide-narrow">Close</span></button>
+                    </form>
+                  {{end}}
                   {{if .CareersURL}}
                     <a class="button button-small" href="{{.CareersURL}}" target="_blank" rel="noreferrer" data-portal-link>{{template "icon" "external"}}Portal</a>
                   {{else if .PostingURL}}
@@ -69,25 +110,26 @@
                 </span>
               </li>
             {{end}}{{end}}
-          </ul>
+          </ol>
         {{else}}
           <div class="empty-state empty-state-inline">
             <span class="empty-icon is-good">{{template "icon" "check-circle"}}</span>
             <div>
-              <h3>All caught up</h3>
+              <h3>{{if .CheckedTodayCount}}Round complete{{else}}All caught up{{end}}</h3>
               <p>{{if .NextCheck}}{{.NextCheck}}{{else if .OpenCount}}No open applications need a check right now.{{else}}Open applications will show up here when a portal check is due.{{end}}</p>
             </div>
           </div>
         {{end}}
       </section>
 
-      <section class="card" aria-labelledby="conversations-title">
-        <header class="card-header">
+      <section class="panel" aria-labelledby="conversations-title">
+        <header class="panel-header">
           <div>
+            <p class="kicker">In conversation</p>
             <h2 id="conversations-title">Interviews &amp; offers</h2>
             <p>Offers first, then interviews that have gone quiet the longest.</p>
           </div>
-          <a class="button button-ghost button-small" href="/applications?status=in_contact">All interviews{{template "icon" "arrow-right"}}</a>
+          <a class="button button-ghost button-small" href="/applications?view=board">Board{{template "icon" "arrow-right"}}</a>
         </header>
         {{if .ConversationApplications}}
           <ul class="list">
@@ -122,101 +164,54 @@
           </div>
         {{end}}
       </section>
-
-      <section class="card" aria-labelledby="recent-title">
-        <header class="card-header">
-          <div>
-            <h2 id="recent-title">Recently added</h2>
-          </div>
-          <a class="button button-ghost button-small" href="/applications">All applications{{template "icon" "arrow-right"}}</a>
-        </header>
-        {{if .RecentApplications}}
-          <ul class="list">
-            {{range .RecentApplications}}
-              <li class="list-row">
-                <button class="row-link" type="button" aria-haspopup="dialog" {{template "application-data" .}}>
-                  {{template "org-mark" .}}
-                  <span class="row-title"><strong>{{.OrganizationName}}</strong><span>{{.RoleTitle}}</span></span>
-                </button>
-                <span class="row-meta">
-                  <span class="row-salary">{{template "salary" .Salary}}</span>
-                  {{template "status-pill" .}}
-                  <span class="row-date">{{.AppliedAgo}}</span>
-                </span>
-              </li>
-            {{end}}
-          </ul>
-        {{else}}
-          <div class="empty-state">
-            <span class="empty-icon">{{template "icon" "inbox"}}</span>
-            <h3>Track your first application</h3>
-            <p>Add the role you applied for and Jobby will remind you to check the portal and keep your pipeline in view.</p>
-            <button class="button button-primary" type="button" data-open-create>{{template "icon" "plus"}}New application</button>
-          </div>
-        {{end}}
-      </section>
     </div>
 
     <aside class="dashboard-side" aria-label="Search insights">
-      <section class="card card-padded" aria-labelledby="activity-title">
-        <header class="card-header card-header-flush">
+      <section class="panel panel-padded" aria-labelledby="activity-title">
+        <header class="panel-header panel-header-flush">
           <h2 id="activity-title">Activity</h2>
-          <span class="card-note">Last 8 weeks</span>
+          <span class="panel-note-inline">Last {{len .Heatmap}} weeks</span>
         </header>
-        <div class="hero-stat">
-          <strong>{{.ApplicationsLast7}}</strong>
-          <span>sent in the last 7 days<br><em>{{.ApplicationsLast30}} in the last 30</em></span>
+        <div class="hero-stats">
+          <div><strong>{{.ApplicationsLast7}}</strong><span>last 7 days</span></div>
+          <div><strong>{{.ApplicationsLast30}}</strong><span>last 30 days</span></div>
+          <div><strong>{{.HeatmapTotal}}</strong><span>in {{len .Heatmap}} weeks</span></div>
         </div>
-        <div class="week-chart" role="img" aria-label="Applications per week for the last eight weeks">
-          {{range .DashboardWeeks}}
-            <div class="week{{if .IsCurrent}} is-current{{end}}" tabindex="0" aria-label="Week of {{.Label}}: {{.Count}} {{if eq .Count 1}}application{{else}}applications{{end}}">
-              <span class="week-tip" aria-hidden="true"><strong>{{.Count}}</strong> {{if .IsCurrent}}this week{{else}}week of {{.Label}}{{end}}</span>
-              <span class="week-track" aria-hidden="true"><i style="--h: {{.Height}}%"></i></span>
-            </div>
-          {{end}}
+        <div class="heatmap" role="img" aria-label="Applications sent per day: {{.HeatmapTotal}} over the last {{len .Heatmap}} weeks">
+          <div class="heatmap-days" aria-hidden="true"><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span><span></span></div>
+          <div class="heatmap-weeks">
+            {{range .Heatmap}}
+              <div class="heatmap-week" data-month="{{.Month}}">
+                {{range .Days}}<span class="heat heat-{{.Level}}{{if .IsToday}} is-today{{end}}{{if .IsFuture}} is-future{{end}}" title="{{.Label}}"></span>{{end}}
+              </div>
+            {{end}}
+          </div>
         </div>
-        <div class="week-axis" aria-hidden="true">
-          {{range $index, $week := .DashboardWeeks}}<span>{{if or (eq $index 0) (eq $index 4)}}{{$week.Label}}{{else if $week.IsCurrent}}Now{{end}}</span>{{end}}
+        <div class="heatmap-legend" aria-hidden="true">
+          <span>Less</span><i class="heat heat-0"></i><i class="heat heat-1"></i><i class="heat heat-2"></i><i class="heat heat-3"></i><i class="heat heat-4"></i><span>More</span>
         </div>
       </section>
 
-      <section class="card card-padded" aria-labelledby="outcomes-title">
-        <header class="card-header card-header-flush">
+      <section class="panel panel-padded" aria-labelledby="outcomes-title">
+        <header class="panel-header panel-header-flush">
           <h2 id="outcomes-title">Outcomes</h2>
-          <span class="card-note">{{.ApplicationCount}} total</span>
+          <span class="panel-note-inline">{{.ApplicationCount}} total</span>
         </header>
-        {{if .ApplicationCount}}
-          <div class="stack-bar" aria-hidden="true">
-            {{if .AppliedCount}}<span class="status-applied" style="--n: {{.AppliedCount}}"></span>{{end}}
-            {{if .InContactCount}}<span class="status-contact" style="--n: {{.InContactCount}}"></span>{{end}}
-            {{if .OfferCount}}<span class="status-offer" style="--n: {{.OfferCount}}"></span>{{end}}
-            {{if .RejectedAfterContactCount}}<span class="status-rejected" style="--n: {{.RejectedAfterContactCount}}"></span>{{end}}
-            {{if .RejectedNoContactCount}}<span class="status-closed" style="--n: {{.RejectedNoContactCount}}"></span>{{end}}
-            {{if .WithdrawnCount}}<span class="status-withdrawn" style="--n: {{.WithdrawnCount}}"></span>{{end}}
-          </div>
-          <ul class="legend">
-            <li class="status-applied"><span>Applied</span><strong>{{.AppliedCount}}</strong></li>
-            <li class="status-contact"><span>Interviewing</span><strong>{{.InContactCount}}</strong></li>
-            <li class="status-offer"><span>Offer</span><strong>{{.OfferCount}}</strong></li>
-            <li class="status-rejected"><span>Rejected</span><strong>{{.RejectedAfterContactCount}}</strong></li>
-            <li class="status-closed"><span>No response</span><strong>{{.RejectedNoContactCount}}</strong></li>
-            <li class="status-withdrawn"><span>Withdrawn</span><strong>{{.WithdrawnCount}}</strong></li>
-          </ul>
-        {{end}}
         <dl class="stat-grid">
           <div><dt>Response rate</dt><dd>{{.ContactRate}}%</dd><small>reached contact</small></div>
+          <div><dt>Time to reply</dt><dd>{{.MedianResponseTime}}</dd><small>median to first contact</small></div>
           <div><dt>Offer rate</dt><dd>{{.OfferRate}}%</dd><small>of decided</small></div>
-          <div><dt>Median age</dt><dd>{{.MedianOpenAge}}</dd><small>of open</small></div>
+          <div><dt>Median age</dt><dd>{{.MedianOpenAge}}</dd><small>of open applications</small></div>
         </dl>
       </section>
 
-      <section class="card card-padded" aria-labelledby="salary-title">
-        <header class="card-header card-header-flush">
+      <section class="panel panel-padded" aria-labelledby="salary-title">
+        <header class="panel-header panel-header-flush">
           <h2 id="salary-title">Salary &amp; location</h2>
         </header>
-        <div class="hero-stat hero-stat-small">
+        <div class="hero-stat">
           <strong><span class="salary"><span class="salary-value">{{.MedianOpenSalary}}</span><span class="salary-mask" aria-label="Salary hidden">•••••</span></span></strong>
-          <span>median midpoint<br><em>of open salary ranges</em></span>
+          <span>median midpoint of open salary ranges</span>
         </div>
         <div class="meter-row">
           <span>Salary listed</span><strong>{{.SalaryCoverage}}%</strong>
@@ -225,10 +220,11 @@
         <div class="meter-row">
           <span>{{template "icon" "globe"}}Remote {{.RemoteCount}}</span><span>{{template "icon" "pin"}}Local {{.LocalCount}}</span>
         </div>
-        <div class="meter" role="img" aria-label="{{.RemotePercent}} percent remote, {{.LocalPercent}} percent local"><i style="--v: {{.RemotePercent}}%"></i></div>
+        <div class="meter meter-split" role="img" aria-label="{{.RemotePercent}} percent remote, {{.LocalPercent}} percent local"><i style="--v: {{.RemotePercent}}%"></i></div>
       </section>
     </aside>
   </div>
+  {{end}}
 </main>
 {{template "application-drawer" .}}
 {{template "shell-end" .}}

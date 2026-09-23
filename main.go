@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -26,6 +27,8 @@ import (
 var appFS embed.FS
 
 var applicationLocation = mustLoadLocation("America/Chicago")
+
+const heatmapWeeks = 16
 
 type layoutData struct {
 	Page                  string
@@ -52,9 +55,13 @@ type overviewData struct {
 	TodayLabel                string
 	DueApplications           []portalApplicationView
 	ConversationApplications  []applicationView
-	RecentApplications        []applicationView
 	NextCheck                 string
-	DashboardWeeks            []dashboardWeekView
+	CheckedTodayCount         int
+	RoundTotal                int
+	RoundPercent              int
+	QuietDueCount             int
+	Heatmap                   []heatmapWeekView
+	HeatmapTotal              int
 	AppliedCount              int
 	InContactCount            int
 	OfferCount                int
@@ -68,6 +75,7 @@ type overviewData struct {
 	ContactRate               int
 	OfferRate                 int
 	MedianOpenAge             string
+	MedianResponseTime        string
 	SalaryListedCount         int
 	SalaryCoverage            int
 	MedianOpenSalary          string
@@ -77,11 +85,17 @@ type overviewData struct {
 	LocalPercent              int
 }
 
-type dashboardWeekView struct {
-	Label     string
-	Count     int
-	Height    int
-	IsCurrent bool
+type heatmapWeekView struct {
+	Month string
+	Days  []heatmapDayView
+}
+
+type heatmapDayView struct {
+	Label    string
+	Count    int
+	Level    int
+	IsToday  bool
+	IsFuture bool
 }
 
 type applicationsPageData struct {
@@ -89,9 +103,21 @@ type applicationsPageData struct {
 	Applications        []applicationView
 	OrganizationOptions []organizationFilterOption
 	StatusTabs          []statusTabView
+	BoardColumns        []boardColumnView
 	FilteredCount       int
 	Filters             applicationFilters
 	HasFilters          bool
+	ClearURL            string
+	TableURL            string
+	BoardURL            string
+}
+
+type boardColumnView struct {
+	Label        string
+	Hint         string
+	Status       string
+	StatusClass  string
+	Applications []applicationView
 }
 
 type statusTabView struct {
@@ -106,6 +132,8 @@ type organizationsPageData struct {
 	Organizations          []organizationView
 	OpenApplications       int64
 	WithCareerPortal       int
+	ActiveCount            int
+	MissingPortalCount     int
 	EditOrganizationForm   organizationFormView
 	SelectedOrganizationID int64
 }
@@ -119,7 +147,15 @@ type organizationView struct {
 	PortalLabel          string
 	ApplicationCount     int64
 	OpenApplicationCount int64
-	UpdatedAt            string
+	NeedsPortal          bool
+	LastApplied          string
+	Applications         []organizationApplicationView
+}
+
+type organizationApplicationView struct {
+	RoleTitle   string
+	StatusLabel string
+	StatusClass string
 }
 
 type applicationFilters struct {
@@ -128,6 +164,7 @@ type applicationFilters struct {
 	OrganizationID int64
 	Sort           string
 	Query          string
+	View           string
 }
 
 type organizationFilterOption struct {
@@ -155,6 +192,10 @@ type applicationView struct {
 	AppliedAt           string
 	AppliedAtDisplay    string
 	AppliedAgo          string
+	AppliedDays         int
+	IsQuiet             bool
+	AddedDisplay        string
+	History             string
 	StatusSince         string
 	StatusDays          int
 	LastChecked         string
@@ -162,6 +203,13 @@ type applicationView struct {
 	LastCheckedIsDue    bool
 	NeedsPortalCheck    bool
 	Notes               string
+}
+
+type statusChangeView struct {
+	Label string `json:"label"`
+	Class string `json:"statusClass"`
+	Date  string `json:"date"`
+	Ago   string `json:"ago"`
 }
 
 type portalApplicationView struct {
@@ -284,6 +332,7 @@ func main() {
 		}
 		name := strings.TrimSpace(r.PostForm.Get("name"))
 		days, err := strconv.ParseInt(r.PostForm.Get("portal_check_days"), 10, 64)
+		quietDays, quietErr := strconv.ParseInt(r.PostForm.Get("quiet_after_days"), 10, 64)
 		if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 100 {
 			http.Error(w, "Name must be 100 characters or fewer.", http.StatusUnprocessableEntity)
 			return
@@ -292,7 +341,11 @@ func main() {
 			http.Error(w, "Choose a portal check interval from 1 to 365 whole days.", http.StatusUnprocessableEntity)
 			return
 		}
-		if err := queries.UpdateSettings(r.Context(), database.UpdateSettingsParams{Name: name, PortalCheckDays: days}); err != nil {
+		if quietErr != nil || quietDays < 1 || quietDays > 365 {
+			http.Error(w, "Choose when to suggest closing, from 1 to 365 whole days.", http.StatusUnprocessableEntity)
+			return
+		}
+		if err := queries.UpdateSettings(r.Context(), database.UpdateSettingsParams{Name: name, PortalCheckDays: days, QuietAfterDays: quietDays}); err != nil {
 			log.Printf("save settings: %v", err)
 			http.Error(w, "Unable to save settings. Please try again.", http.StatusInternalServerError)
 			return
@@ -412,7 +465,7 @@ func main() {
 			return
 		}
 
-		_, err = txQueries.CreateApplication(r.Context(), database.CreateApplicationParams{
+		application, err := txQueries.CreateApplication(r.Context(), database.CreateApplicationParams{
 			OrganizationID: organization.ID,
 			RoleTitle:      input.RoleTitle,
 			PostingUrl:     input.PostingURL,
@@ -424,6 +477,15 @@ func main() {
 		})
 		if err != nil {
 			log.Printf("create application: %v", err)
+			http.Error(w, "Unable to save application", http.StatusInternalServerError)
+			return
+		}
+		if err := txQueries.CreateStatusChange(r.Context(), database.CreateStatusChangeParams{
+			ApplicationID: application.ID,
+			Status:        application.Status,
+			ChangedAt:     application.CreatedAt,
+		}); err != nil {
+			log.Printf("record initial status: %v", err)
 			http.Error(w, "Unable to save application", http.StatusInternalServerError)
 			return
 		}
@@ -484,6 +546,15 @@ func main() {
 			return
 		}
 
+		if err := txQueries.RecordStatusChange(r.Context(), database.RecordStatusChangeParams{
+			Status: input.Status,
+			ID:     applicationID,
+		}); err != nil {
+			log.Printf("record status change: %v", err)
+			http.Error(w, "Unable to update application", http.StatusInternalServerError)
+			return
+		}
+
 		_, err = txQueries.UpdateApplication(r.Context(), database.UpdateApplicationParams{
 			OrganizationID: organization.ID,
 			RoleTitle:      input.RoleTitle,
@@ -537,7 +608,24 @@ func main() {
 			return
 		}
 
-		rowsAffected, err := queries.UpdateApplicationStatus(r.Context(), database.UpdateApplicationStatusParams{
+		tx, err := db.BeginTx(r.Context(), nil)
+		if err != nil {
+			log.Printf("begin status transaction: %v", err)
+			http.Error(w, "Unable to update application status", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
+		txQueries := queries.WithTx(tx)
+		if err := txQueries.RecordStatusChange(r.Context(), database.RecordStatusChangeParams{
+			Status: status,
+			ID:     applicationID,
+		}); err != nil {
+			log.Printf("record status change: %v", err)
+			http.Error(w, "Unable to update application status", http.StatusInternalServerError)
+			return
+		}
+		rowsAffected, err := txQueries.UpdateApplicationStatus(r.Context(), database.UpdateApplicationStatusParams{
 			Status: status,
 			ID:     applicationID,
 		})
@@ -548,6 +636,11 @@ func main() {
 		}
 		if rowsAffected == 0 {
 			http.NotFound(w, r)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			log.Printf("commit status change: %v", err)
+			http.Error(w, "Unable to update application status", http.StatusInternalServerError)
 			return
 		}
 
@@ -671,39 +764,33 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	if err != nil {
 		return overviewData{}, err
 	}
+	history, err := loadStatusHistory(ctx, queries)
+	if err != nil {
+		return overviewData{}, err
+	}
 
 	now := time.Now().In(applicationLocation)
 	data := overviewData{
-		layoutData:       newLayoutData("dashboard", settings, applications, organizations, now),
-		Greeting:         greeting(now, settings.Name),
-		TodayLabel:       now.Format("Monday, January 2"),
-		DashboardWeeks:   make([]dashboardWeekView, 8),
-		MedianOpenAge:    "—",
-		MedianOpenSalary: "—",
+		layoutData:         newLayoutData("dashboard", settings, applications, organizations, now),
+		Greeting:           greeting(now, settings.Name),
+		TodayLabel:         now.Format("Monday, January 2"),
+		MedianOpenAge:      "—",
+		MedianResponseTime: "—",
+		MedianOpenSalary:   "—",
 	}
 	data.ReturnPath = "/"
 
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, applicationLocation)
 	weekStart := today.AddDate(0, 0, -(int(today.Weekday())+6)%7)
-	firstWeekStart := weekStart.AddDate(0, 0, -49)
-	weekCounts := make([]int, len(data.DashboardWeeks))
+	heatmapStart := weekStart.AddDate(0, 0, -7*(heatmapWeeks-1))
+	dayCounts := make([]int, heatmapWeeks*7)
 	openAges := make([]int, 0, len(applications))
+	responseTimes := make([]int, 0, len(applications))
 	openSalaryMidpoints := make([]int64, 0, len(applications))
 	conversations := make([]database.ListApplicationsRow, 0)
 	nextCheckDays, nextCheckName := -1, ""
 
-	for index := range data.DashboardWeeks {
-		label := firstWeekStart.AddDate(0, 0, index*7).Format("Jan 2")
-		if index == len(data.DashboardWeeks)-1 {
-			label = "This week"
-		}
-		data.DashboardWeeks[index] = dashboardWeekView{
-			Label:     label,
-			IsCurrent: index == len(data.DashboardWeeks)-1,
-		}
-	}
-
-	for index, application := range applications {
+	for _, application := range applications {
 		activityDate, hasActivityDate := applicationActivityDate(application)
 		if hasActivityDate {
 			activityDay := time.Date(activityDate.Year(), activityDate.Month(), activityDate.Day(), 0, 0, 0, 0, applicationLocation)
@@ -714,12 +801,16 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 				if !activityDay.Before(today.AddDate(0, 0, -29)) {
 					data.ApplicationsLast30++
 				}
-			}
-			if !activityDay.Before(firstWeekStart) && !activityDay.After(today) {
-				weekIndex := calendarDaysBetween(firstWeekStart, activityDay) / 7
-				if weekIndex >= 0 && weekIndex < len(weekCounts) {
-					weekCounts[weekIndex]++
+				if dayIndex := calendarDaysBetween(heatmapStart, activityDay); dayIndex >= 0 && dayIndex < len(dayCounts) {
+					dayCounts[dayIndex]++
+					data.HeatmapTotal++
 				}
+			}
+		}
+
+		if hasActivityDate {
+			if repliedAt, ok := firstReply(history[application.ID]); ok && !repliedAt.Before(activityDate) {
+				responseTimes = append(responseTimes, calendarDaysBetween(activityDate, repliedAt.In(applicationLocation)))
 			}
 		}
 
@@ -749,11 +840,6 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 			data.WithdrawnCount++
 		}
 
-		view := newApplicationView(application, now, int(settings.PortalCheckDays))
-		if index < 5 {
-			data.RecentApplications = append(data.RecentApplications, view)
-		}
-
 		if !isOpenStatus(application.Status) {
 			continue
 		}
@@ -764,13 +850,22 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		if application.SalaryMin.Valid && application.SalaryMax.Valid {
 			openSalaryMidpoints = append(openSalaryMidpoints, application.SalaryMin.Int64+(application.SalaryMax.Int64-application.SalaryMin.Int64)/2)
 		}
+		view := newApplicationView(application, history[application.ID], now, settings)
 		if !view.NeedsPortalCheck {
 			continue
 		}
 		if view.LastCheckedIsDue {
 			data.DueApplications = append(data.DueApplications, newPortalApplicationView(application, view, now))
+			if view.IsQuiet {
+				data.QuietDueCount++
+			}
 		} else if checkedAt, err := time.Parse(time.RFC3339Nano, application.LastCheckedAt.String); err == nil {
-			remaining := int(settings.PortalCheckDays) - calendarDaysBetween(checkedAt.In(now.Location()), now)
+			daysSinceCheck := calendarDaysBetween(checkedAt.In(now.Location()), now)
+			// Creating an application records a check at the same instant; that isn't part of today's round.
+			if daysSinceCheck == 0 && application.LastCheckedAt.String != application.CreatedAt {
+				data.CheckedTodayCount++
+			}
+			remaining := int(settings.PortalCheckDays) - daysSinceCheck
 			if nextCheckDays < 0 || remaining < nextCheckDays {
 				nextCheckDays, nextCheckName = remaining, application.OrganizationName
 			}
@@ -785,10 +880,16 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	data.SalaryCoverage = roundedPercentage(data.SalaryListedCount, data.ApplicationCount)
 	data.RemotePercent = roundedPercentage(data.RemoteCount, data.ApplicationCount)
 	data.LocalPercent = roundedPercentage(data.LocalCount, data.ApplicationCount)
+	data.RoundTotal = len(data.DueApplications) + data.CheckedTodayCount
+	data.RoundPercent = roundedPercentage(data.CheckedTodayCount, data.RoundTotal)
 
 	if len(openAges) > 0 {
 		sort.Ints(openAges)
 		data.MedianOpenAge = fmt.Sprintf("%dd", medianInt(openAges))
+	}
+	if len(responseTimes) > 0 {
+		sort.Ints(responseTimes)
+		data.MedianResponseTime = fmt.Sprintf("%dd", medianInt(responseTimes))
 	}
 	if len(openSalaryMidpoints) > 0 {
 		sort.Slice(openSalaryMidpoints, func(i, j int) bool {
@@ -797,19 +898,28 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		data.MedianOpenSalary = compactSalary(medianInt64(openSalaryMidpoints))
 	}
 
-	maxWeekCount := 0
-	for _, count := range weekCounts {
-		if count > maxWeekCount {
-			maxWeekCount = count
+	for week := range heatmapWeeks {
+		start := heatmapStart.AddDate(0, 0, week*7)
+		view := heatmapWeekView{Days: make([]heatmapDayView, 7)}
+		if week > 0 && start.Month() != start.AddDate(0, 0, -7).Month() {
+			view.Month = start.Format("Jan")
 		}
-	}
-	for index, count := range weekCounts {
-		height := 0
-		if maxWeekCount > 0 && count > 0 {
-			height = max(8, count*100/maxWeekCount)
+		for weekday := range 7 {
+			day := start.AddDate(0, 0, weekday)
+			count := dayCounts[week*7+weekday]
+			noun := "applications"
+			if count == 1 {
+				noun = "application"
+			}
+			view.Days[weekday] = heatmapDayView{
+				Label:    fmt.Sprintf("%s: %d %s", day.Format("Mon, Jan 2"), count, noun),
+				Count:    count,
+				Level:    heatLevel(count),
+				IsToday:  day.Equal(today),
+				IsFuture: day.After(today),
+			}
 		}
-		data.DashboardWeeks[index].Count = count
-		data.DashboardWeeks[index].Height = height
+		data.Heatmap = append(data.Heatmap, view)
 	}
 
 	sort.Slice(data.DueApplications, func(i, j int) bool {
@@ -825,7 +935,7 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 		return conversations[i].StatusChangedAt < conversations[j].StatusChangedAt
 	})
 	for _, application := range conversations {
-		data.ConversationApplications = append(data.ConversationApplications, newApplicationView(application, now, int(settings.PortalCheckDays)))
+		data.ConversationApplications = append(data.ConversationApplications, newApplicationView(application, history[application.ID], now, settings))
 	}
 
 	switch {
@@ -836,6 +946,41 @@ func loadOverviewData(ctx context.Context, queries *database.Queries) (overviewD
 	}
 
 	return data, nil
+}
+
+func loadStatusHistory(ctx context.Context, queries *database.Queries) (map[int64][]database.ListStatusChangesRow, error) {
+	changes, err := queries.ListStatusChanges(ctx)
+	if err != nil {
+		return nil, err
+	}
+	history := make(map[int64][]database.ListStatusChangesRow)
+	for _, change := range changes {
+		history[change.ApplicationID] = append(history[change.ApplicationID], change)
+	}
+	return history, nil
+}
+
+// A reply is the first move into a status that means the organization got in touch.
+func firstReply(changes []database.ListStatusChangesRow) (time.Time, bool) {
+	for _, change := range changes {
+		switch change.Status {
+		case "in_contact", "offer", "rejected_after_contact":
+			changedAt, err := time.Parse(time.RFC3339Nano, change.ChangedAt)
+			return changedAt, err == nil
+		}
+	}
+	return time.Time{}, false
+}
+
+func heatLevel(count int) int {
+	switch {
+	case count >= 5:
+		return 4
+	case count >= 3:
+		return 3
+	default:
+		return count
+	}
 }
 
 func newLayoutData(page string, settings database.GetSettingsRow, applications []database.ListApplicationsRow, organizations []database.ListOrganizationsRow, now time.Time) layoutData {
@@ -928,14 +1073,23 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 	if err != nil {
 		return applicationsPageData{}, err
 	}
+	history, err := loadStatusHistory(ctx, queries)
+	if err != nil {
+		return applicationsPageData{}, err
+	}
 
 	now := time.Now().In(applicationLocation)
 	data := applicationsPageData{
 		layoutData: newLayoutData("applications", settings, applications, organizations, now),
 		Filters:    filters,
 		HasFilters: filters.Income != "" || filters.OrganizationID != 0 || filters.Query != "",
+		ClearURL:   applicationsURL(applicationFilters{Status: filters.Status, View: filters.View}),
 	}
 	data.ReturnPath = applicationsURL(filters)
+	tableFilters, boardFilters := filters, filters
+	tableFilters.View = ""
+	boardFilters.View, boardFilters.Status = "board", ""
+	data.TableURL, data.BoardURL = applicationsURL(tableFilters), applicationsURL(boardFilters)
 	for _, organization := range organizations {
 		data.OrganizationOptions = append(data.OrganizationOptions, organizationFilterOption{
 			ID:   organization.ID,
@@ -979,9 +1133,30 @@ func loadApplicationsPageData(ctx context.Context, queries *database.Queries, fi
 	}
 	sortApplications(matched, filters.Sort)
 	for _, application := range matched {
-		data.Applications = append(data.Applications, newApplicationView(application, now, int(settings.PortalCheckDays)))
+		data.Applications = append(data.Applications, newApplicationView(application, history[application.ID], now, settings))
 	}
 	data.FilteredCount = len(data.Applications)
+
+	if filters.View == "board" {
+		data.BoardColumns = []boardColumnView{
+			{Label: "Applied", Hint: "Waiting to hear back", Status: "applied", StatusClass: "status-applied"},
+			{Label: "Interviewing", Hint: "Talking with the team", Status: "in_contact", StatusClass: "status-contact"},
+			{Label: "Offer", Hint: "Waiting on your decision", Status: "offer", StatusClass: "status-offer"},
+			{Label: "Closed", Hint: "Rejected, no response, or withdrawn", StatusClass: "status-closed"},
+		}
+		for _, application := range data.Applications {
+			column := 3
+			switch application.Status {
+			case "applied":
+				column = 0
+			case "in_contact":
+				column = 1
+			case "offer":
+				column = 2
+			}
+			data.BoardColumns[column].Applications = append(data.BoardColumns[column].Applications, application)
+		}
+	}
 
 	return data, nil
 }
@@ -1002,6 +1177,9 @@ func applicationsURL(filters applicationFilters) string {
 	}
 	if filters.Query != "" {
 		query.Set("q", filters.Query)
+	}
+	if filters.View != "" {
+		query.Set("view", filters.View)
 	}
 	return (&url.URL{Path: "/applications", RawQuery: query.Encode()}).RequestURI()
 }
@@ -1043,19 +1221,30 @@ func loadOrganizationsPageData(ctx context.Context, queries *database.Queries, s
 		return organizationsPageData{}, err
 	}
 
+	now := time.Now().In(applicationLocation)
 	data := organizationsPageData{
-		layoutData:             newLayoutData("organizations", settings, applications, organizations, time.Now().In(applicationLocation)),
+		layoutData:             newLayoutData("organizations", settings, applications, organizations, now),
 		EditOrganizationForm:   state.EditOrganizationForm,
 		SelectedOrganizationID: state.SelectedOrganizationID,
 	}
 	data.ReturnPath = "/organizations"
+	applicationsByOrganization := make(map[int64][]database.ListApplicationsRow)
+	for _, application := range applications {
+		applicationsByOrganization[application.OrganizationID] = append(applicationsByOrganization[application.OrganizationID], application)
+	}
 	foundSelection := false
 	for _, organization := range organizations {
-		view := newOrganizationView(organization)
+		view := newOrganizationView(organization, applicationsByOrganization[organization.ID], now)
 		data.Organizations = append(data.Organizations, view)
 		data.OpenApplications += organization.OpenApplicationCount
 		if view.CareersURL != "" {
 			data.WithCareerPortal++
+		}
+		if organization.OpenApplicationCount > 0 {
+			data.ActiveCount++
+		}
+		if view.NeedsPortal {
+			data.MissingPortalCount++
 		}
 		if organization.ID == state.SelectedOrganizationID {
 			foundSelection = true
@@ -1097,6 +1286,12 @@ func parseApplicationFilters(values url.Values) applicationFilters {
 	query := normalizeSingleLine(values.Get("q"))
 	if utf8.ValidString(query) && utf8.RuneCountInString(query) <= 100 {
 		filters.Query = query
+	}
+
+	// The board groups every status into columns, so it ignores the status filter.
+	if values.Get("view") == "board" {
+		filters.View = "board"
+		filters.Status = ""
 	}
 	return filters
 }
@@ -1250,7 +1445,7 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 	}
 }
 
-func newOrganizationView(organization database.ListOrganizationsRow) organizationView {
+func newOrganizationView(organization database.ListOrganizationsRow, applications []database.ListApplicationsRow, now time.Time) organizationView {
 	careersURL := nullStringValue(organization.CareersUrl)
 	portalLabel := "Not saved"
 	if careersURL != "" {
@@ -1260,12 +1455,7 @@ func newOrganizationView(organization database.ListOrganizationsRow) organizatio
 		}
 	}
 
-	updatedAt := "Recently updated"
-	if parsedTime, err := time.Parse(time.RFC3339Nano, organization.UpdatedAt); err == nil {
-		updatedAt = "Updated " + parsedTime.In(applicationLocation).Format("Jan 2, 2006")
-	}
-
-	return organizationView{
+	view := organizationView{
 		ID:                   organization.ID,
 		Name:                 organization.Name,
 		Initial:              organizationInitial(organization.Name),
@@ -1274,8 +1464,25 @@ func newOrganizationView(organization database.ListOrganizationsRow) organizatio
 		PortalLabel:          portalLabel,
 		ApplicationCount:     organization.ApplicationCount,
 		OpenApplicationCount: organization.OpenApplicationCount,
-		UpdatedAt:            updatedAt,
+		NeedsPortal:          careersURL == "" && organization.OpenApplicationCount > 0,
 	}
+
+	var latest time.Time
+	for _, application := range applications {
+		label, class := formatStatus(application.Status)
+		view.Applications = append(view.Applications, organizationApplicationView{
+			RoleTitle:   application.RoleTitle,
+			StatusLabel: label,
+			StatusClass: class,
+		})
+		if activityDate, ok := applicationActivityDate(application); ok && activityDate.After(latest) {
+			latest = activityDate
+		}
+	}
+	if !latest.IsZero() {
+		view.LastApplied = "Last applied " + strings.ToLower(relativeDays(calendarDaysBetween(latest, now)))
+	}
+	return view
 }
 
 func parseOrganizationForm(r *http.Request) (organizationFormView, organizationFormInput) {
@@ -1375,8 +1582,8 @@ func isApplicationStatus(status string) bool {
 	}
 }
 
-func newApplicationView(application database.ListApplicationsRow, now time.Time, portalCheckDays int) applicationView {
-	lastChecked, lastCheckedDetail, lastCheckedIsDue := formatLastChecked(application.LastCheckedAt, now, portalCheckDays)
+func newApplicationView(application database.ListApplicationsRow, changes []database.ListStatusChangesRow, now time.Time, settings database.GetSettingsRow) applicationView {
+	lastChecked, lastCheckedDetail, lastCheckedIsDue := formatLastChecked(application.LastCheckedAt, now, int(settings.PortalCheckDays))
 	statusLabel, statusClass := formatStatus(application.Status)
 
 	statusSince, statusDays := "", 0
@@ -1384,9 +1591,10 @@ func newApplicationView(application database.ListApplicationsRow, now time.Time,
 		statusDays = calendarDaysBetween(changedAt.In(now.Location()), now)
 		statusSince = relativeDays(statusDays)
 	}
-	appliedAgo := ""
+	appliedAgo, appliedDays := "", 0
 	if activityDate, ok := applicationActivityDate(application); ok {
-		appliedAgo = relativeDays(calendarDaysBetween(activityDate, now))
+		appliedDays = calendarDaysBetween(activityDate, now)
+		appliedAgo = relativeDays(appliedDays)
 	}
 
 	return applicationView{
@@ -1409,6 +1617,10 @@ func newApplicationView(application database.ListApplicationsRow, now time.Time,
 		AppliedAt:           nullStringValue(application.AppliedAt),
 		AppliedAtDisplay:    formatAppliedAt(application.AppliedAt),
 		AppliedAgo:          appliedAgo,
+		AppliedDays:         appliedDays,
+		IsQuiet:             application.Status == "applied" && appliedDays >= int(settings.QuietAfterDays),
+		AddedDisplay:        formatTimestampDate(application.CreatedAt),
+		History:             formatHistory(changes, now),
 		StatusSince:         statusSince,
 		StatusDays:          statusDays,
 		LastChecked:         lastChecked,
@@ -1495,6 +1707,36 @@ func formatAppliedAt(appliedAt sql.NullString) string {
 		return appliedAt.String
 	}
 	return appliedDate.Format("Jan 2, 2006")
+}
+
+// The first entry records the application being added as Applied, which the timeline already shows.
+func formatHistory(changes []database.ListStatusChangesRow, now time.Time) string {
+	views := make([]statusChangeView, 0, len(changes))
+	for index, change := range changes {
+		if index == 0 && change.Status == "applied" {
+			continue
+		}
+		label, class := formatStatus(change.Status)
+		view := statusChangeView{Label: label, Class: class}
+		if changedAt, err := time.Parse(time.RFC3339Nano, change.ChangedAt); err == nil {
+			view.Date = changedAt.In(applicationLocation).Format("Jan 2, 2006")
+			view.Ago = relativeDays(calendarDaysBetween(changedAt.In(now.Location()), now))
+		}
+		views = append(views, view)
+	}
+	encoded, err := json.Marshal(views)
+	if err != nil {
+		return "[]"
+	}
+	return string(encoded)
+}
+
+func formatTimestampDate(value string) string {
+	parsedTime, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return ""
+	}
+	return parsedTime.In(applicationLocation).Format("Jan 2, 2006")
 }
 
 func formatStatus(status string) (string, string) {

@@ -14,13 +14,18 @@
       <form class="status-picker" method="post" data-status-form data-swap-form data-toast="Status updated">
         <fieldset>
           <legend>Status</legend>
-          <div class="status-options">
-            <label class="status-option status-applied"><input type="radio" name="status" value="applied"><span>Applied</span></label>
-            <label class="status-option status-contact"><input type="radio" name="status" value="in_contact"><span>Interviewing</span></label>
-            <label class="status-option status-offer"><input type="radio" name="status" value="offer"><span>Offer</span></label>
-            <label class="status-option status-rejected"><input type="radio" name="status" value="rejected_after_contact"><span>Rejected</span></label>
-            <label class="status-option status-closed"><input type="radio" name="status" value="rejected_no_contact"><span>No response</span></label>
-            <label class="status-option status-withdrawn"><input type="radio" name="status" value="withdrawn"><span>Withdrawn</span></label>
+          <div class="status-track">
+            <div class="status-options status-options-open">
+              <label class="status-option status-applied"><input type="radio" name="status" value="applied"><span>Applied</span></label>
+              <label class="status-option status-contact"><input type="radio" name="status" value="in_contact"><span>Interviewing</span></label>
+              <label class="status-option status-offer"><input type="radio" name="status" value="offer"><span>Offer</span></label>
+            </div>
+            <div class="status-options status-options-closed">
+              <span class="status-group-label">Closed</span>
+              <label class="status-option status-rejected"><input type="radio" name="status" value="rejected_after_contact"><span>Rejected</span></label>
+              <label class="status-option status-closed"><input type="radio" name="status" value="rejected_no_contact"><span>No response</span></label>
+              <label class="status-option status-withdrawn"><input type="radio" name="status" value="withdrawn"><span>Withdrawn</span></label>
+            </div>
           </div>
         </fieldset>
       </form>
@@ -45,26 +50,24 @@
           <dt>Location</dt>
           <dd data-field="location"></dd>
         </div>
-        <div>
-          <dt>Applied</dt>
-          <dd><span data-field="applied"></span><small data-field="applied-ago"></small></dd>
-        </div>
-        <div>
-          <dt>Status changed</dt>
-          <dd data-field="status-since"></dd>
-        </div>
-        <div class="facts-wide">
-          <dt>Last portal check</dt>
-          <dd>
-            <span data-field="last-checked"></span>
-            <span class="badge badge-due" data-field="due" hidden>{{template "icon" "clock"}}Due</span>
-            <small data-field="last-checked-detail"></small>
-          </dd>
-        </div>
       </dl>
 
+      <section aria-labelledby="drawer-timeline-title">
+        <h3 class="drawer-label" id="drawer-timeline-title">Timeline</h3>
+        <ol class="timeline">
+          <li>
+            <span class="timeline-what" data-field="applied-label">Applied</span>
+            <span class="timeline-when"><span data-field="applied"></span><small data-field="applied-ago"></small></span>
+          </li>
+          <li data-field="check-step">
+            <span class="timeline-what">Portal checked <span class="badge badge-due" data-field="due" hidden>{{template "icon" "clock"}}Due</span></span>
+            <span class="timeline-when"><span data-field="last-checked"></span><small data-field="last-checked-detail"></small></span>
+          </li>
+        </ol>
+      </section>
+
       <section class="notes" aria-labelledby="drawer-notes-title">
-        <h3 id="drawer-notes-title">Notes</h3>
+        <h3 class="drawer-label" id="drawer-notes-title">Notes</h3>
         <p data-field="notes"></p>
       </section>
     </div>

@@ -2,8 +2,9 @@
 <main class="main" id="main-content" data-swap="main">
   <header class="page-header">
     <div>
+      <p class="eyebrow">{{.OrganizationCount}} {{if eq .OrganizationCount 1}}organization{{else}}organizations{{end}} · {{.WithCareerPortal}} with a portal saved</p>
       <h1>Organizations</h1>
-      <p class="page-summary">{{.OrganizationCount}} {{if eq .OrganizationCount 1}}organization{{else}}organizations{{end}} <span aria-hidden="true">·</span> {{.WithCareerPortal}} with a saved career portal <span aria-hidden="true">·</span> {{.OpenApplications}} open {{if eq .OpenApplications 1}}application{{else}}applications{{end}}</p>
+      {{if .MissingPortalCount}}<p class="lede"><strong class="is-due">{{.MissingPortalCount}} {{if eq .MissingPortalCount 1}}organization{{else}}organizations{{end}}</strong> with open applications {{if eq .MissingPortalCount 1}}has{{else}}have{{end}} no portal link. Add one to make portal checks a single click.</p>{{end}}
     </div>
   </header>
 
@@ -14,10 +15,15 @@
         <input type="search" placeholder="Search organizations" aria-label="Search organizations" autocomplete="off" data-search-input>
         <kbd aria-hidden="true">/</kbd>
       </label>
+      <div class="chips" role="group" aria-label="Show">
+        <button class="chip" type="button" data-chip="" aria-pressed="true">All<span>{{.OrganizationCount}}</span></button>
+        <button class="chip" type="button" data-chip="open" aria-pressed="false">Open applications<span>{{.ActiveCount}}</span></button>
+        <button class="chip" type="button" data-chip="missing" aria-pressed="false">Missing portal<span>{{.MissingPortalCount}}</span></button>
+      </div>
     </div>
   {{end}}
 
-  <section class="card table-card" aria-label="Organizations">
+  <section class="panel table-panel" aria-label="Organizations">
     {{if .Organizations}}
       <div class="table-head org-table-head" aria-hidden="true">
         <span>Organization</span>
@@ -27,7 +33,7 @@
       </div>
       <ol class="list org-table">
         {{range .Organizations}}
-          <li class="list-row org-row" data-search-item data-search-text="{{.Name}}" data-organization-row="{{.ID}}">
+          <li class="list-row org-row" data-search-item data-search-text="{{.Name}}" data-tags="{{if .OpenApplicationCount}}open{{end}} {{if .NeedsPortal}}missing{{end}}" data-organization-row="{{.ID}}">
             <button
               class="row-link"
               type="button"
@@ -42,12 +48,12 @@
               data-open-application-count="{{.OpenApplicationCount}}"
             >
               <span class="org-mark {{.Mark}}" aria-hidden="true">{{.Initial}}</span>
-              <span class="row-title"><strong>{{.Name}}</strong><span>{{.UpdatedAt}}</span></span>
+              <span class="row-title"><strong>{{.Name}}</strong><span>{{if .LastApplied}}{{.LastApplied}}{{else}}No applications yet{{end}}</span></span>
             </button>
-            <span class="cell">
+            <span class="cell org-apps">
               {{if .ApplicationCount}}
-                <a class="count-link" href="/applications?organization={{.ID}}">{{.ApplicationCount}} {{if eq .ApplicationCount 1}}application{{else}}applications{{end}}</a>
-                {{if .OpenApplicationCount}}<span class="pill status-applied pill-quiet">{{.OpenApplicationCount}} open</span>{{end}}
+                <span class="dots" aria-hidden="true">{{range .Applications}}<i class="{{.StatusClass}}" title="{{.RoleTitle}} · {{.StatusLabel}}"></i>{{end}}</span>
+                <a class="count-link" href="/applications?organization={{.ID}}">{{.ApplicationCount}} {{if eq .ApplicationCount 1}}application{{else}}applications{{end}}{{if .OpenApplicationCount}}<span> · {{.OpenApplicationCount}} open</span>{{end}}</a>
               {{else}}
                 <span class="muted">None yet</span>
               {{end}}
@@ -55,7 +61,7 @@
             <span class="cell">
               {{if .CareersURL}}
                 <a class="portal-link" href="{{.CareersURL}}" target="_blank" rel="noreferrer">{{template "icon" "external"}}<span>{{.PortalLabel}}</span></a>
-              {{else if .OpenApplicationCount}}
+              {{else if .NeedsPortal}}
                 <span class="missing-portal is-needed">{{template "icon" "alert"}}Add a portal link</span>
               {{else}}
                 <span class="missing-portal">Not saved</span>
@@ -68,9 +74,9 @@
       <div class="empty-state" data-search-empty hidden>
         <span class="empty-icon">{{template "icon" "search"}}</span>
         <h3>No matches</h3>
-        <p>No organization matches “<span data-search-term></span>”.</p>
+        <p>No organization matches this search and filter.</p>
       </div>
-      <footer class="card-footer">
+      <footer class="panel-footer">
         <span><span data-search-count>{{.OrganizationCount}}</span> of {{.OrganizationCount}} shown</span>
         <span class="shortcut-hint">Organizations are created automatically when you add an application</span>
       </footer>

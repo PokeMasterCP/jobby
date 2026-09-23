@@ -10,31 +10,33 @@ import (
 )
 
 const getSettings = `-- name: GetSettings :one
-SELECT name, portal_check_days FROM settings WHERE id = 1
+SELECT name, portal_check_days, quiet_after_days FROM settings WHERE id = 1
 `
 
 type GetSettingsRow struct {
 	Name            string
 	PortalCheckDays int64
+	QuietAfterDays  int64
 }
 
 func (q *Queries) GetSettings(ctx context.Context) (GetSettingsRow, error) {
 	row := q.db.QueryRowContext(ctx, getSettings)
 	var i GetSettingsRow
-	err := row.Scan(&i.Name, &i.PortalCheckDays)
+	err := row.Scan(&i.Name, &i.PortalCheckDays, &i.QuietAfterDays)
 	return i, err
 }
 
 const updateSettings = `-- name: UpdateSettings :exec
-UPDATE settings SET name = ?, portal_check_days = ? WHERE id = 1
+UPDATE settings SET name = ?, portal_check_days = ?, quiet_after_days = ? WHERE id = 1
 `
 
 type UpdateSettingsParams struct {
 	Name            string
 	PortalCheckDays int64
+	QuietAfterDays  int64
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) error {
-	_, err := q.db.ExecContext(ctx, updateSettings, arg.Name, arg.PortalCheckDays)
+	_, err := q.db.ExecContext(ctx, updateSettings, arg.Name, arg.PortalCheckDays, arg.QuietAfterDays)
 	return err
 }
