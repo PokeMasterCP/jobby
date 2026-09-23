@@ -220,6 +220,36 @@
 
   let currentApplication = null;
 
+  const parseHistory = (value) => {
+    try {
+      return JSON.parse(value || "[]");
+    } catch {
+      return [];
+    }
+  };
+
+  const renderHistory = (value) => {
+    $$("[data-history-step]", drawer).forEach((step) => step.remove());
+    const checkStep = field("check-step");
+    parseHistory(value).forEach((change) => {
+      const step = document.createElement("li");
+      step.className = change.statusClass;
+      step.dataset.historyStep = "";
+      const what = document.createElement("span");
+      what.className = "timeline-what";
+      what.textContent = `Moved to ${change.label}`;
+      const when = document.createElement("span");
+      when.className = "timeline-when";
+      const date = document.createElement("span");
+      date.textContent = change.date;
+      const ago = document.createElement("small");
+      ago.textContent = change.ago;
+      when.append(date, ago);
+      step.append(what, when);
+      checkStep.before(step);
+    });
+  };
+
   const fillDrawer = (data) => {
     currentApplication = { ...data };
     currentApplicationID = data.applicationId;
@@ -243,9 +273,10 @@
 
     field("salary").textContent = data.salary;
     field("location").textContent = data.location;
-    field("applied").textContent = data.appliedAtDisplay;
-    field("applied-ago").textContent = data.appliedAt ? data.appliedAgo : `Added ${data.appliedAgo.toLowerCase()}`;
-    field("status-since").textContent = data.statusSince;
+    field("applied-label").textContent = data.appliedAt ? "Applied" : "Added";
+    field("applied").textContent = data.appliedAt ? data.appliedAtDisplay : data.addedDisplay;
+    field("applied-ago").textContent = data.appliedAgo;
+    renderHistory(data.history);
     field("last-checked").textContent = data.lastChecked;
     field("last-checked-detail").textContent = data.lastCheckedDetail;
     field("due").hidden = data.due !== "true";
@@ -326,7 +357,19 @@
       const status = form.elements.namedItem("status").value;
       if (status !== data.status) {
         const portalCheck = status === "applied" || status === "in_contact";
-        Object.assign(data, { status, statusSince: "Today", portalCheck: String(portalCheck), due: portalCheck ? data.due : "false" });
+        const option = $(`input[name="status"][value="${status}"]`, form)?.closest(".status-option");
+        const statusLabel = option?.textContent.trim() || data.statusLabel;
+        const statusClass = Array.from(option?.classList || []).find((name) => name.startsWith("status-")) || "";
+        const history = parseHistory(data.history);
+        history.push({ label: statusLabel, statusClass, date: "Today", ago: "" });
+        Object.assign(data, {
+          status,
+          statusLabel,
+          statusSince: "Today",
+          history: JSON.stringify(history),
+          portalCheck: String(portalCheck),
+          due: portalCheck ? data.due : "false",
+        });
       }
     }
     fillDrawer(data);
@@ -428,6 +471,9 @@
 
   const searchInput = () => $("[data-search-input]");
 
+  // Chips narrow the list to rows tagged with the chosen value, alongside the text search.
+  let activeChip = "";
+
   const applySearch = () => {
     const input = searchInput();
     if (!input) return;
@@ -436,14 +482,16 @@
     let shown = 0;
     items.forEach((item) => {
       const text = item.dataset.searchText.toLowerCase();
-      const match = terms.every((term) => text.includes(term));
+      const tagged = !activeChip || (item.dataset.tags || "").split(/\s+/).includes(activeChip);
+      const match = tagged && terms.every((term) => text.includes(term));
       item.hidden = !match;
       if (match) shown += 1;
     });
     const empty = $("[data-search-empty]");
     if (empty) {
       empty.hidden = shown > 0 || items.length === 0;
-      $("[data-search-term]", empty).textContent = input.value.trim();
+      const term = $("[data-search-term]", empty);
+      if (term) term.textContent = input.value.trim();
     }
     const count = $("[data-search-count]");
     if (count) count.textContent = shown;
@@ -547,6 +595,66 @@
     }
   });
 
+  // Board drag and drop. Every card also opens the details panel, where the status can be changed without dragging.
+
+  let draggedCard = null;
+
+  const clearDropTargets = () => {
+    $$("[data-drop-status].is-over").forEach((zone) => zone.classList.remove("is-over"));
+  };
+
+  document.addEventListener("dragstart", (event) => {
+    const card = event.target.closest?.("[data-board-card]");
+    if (!card) return;
+    draggedCard = card;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", $("[data-open-application]", card).dataset.applicationId);
+    card.classList.add("is-dragging");
+    document.body.classList.add("is-dragging-card");
+  });
+
+  document.addEventListener("dragend", () => {
+    draggedCard?.classList.remove("is-dragging");
+    draggedCard = null;
+    document.body.classList.remove("is-dragging-card");
+    clearDropTargets();
+  });
+
+  // Closed columns hold the specific drop zones, so the innermost target wins.
+  const dropTarget = (event) => (draggedCard ? event.target.closest?.("[data-drop-status]") : null);
+
+  document.addEventListener("dragover", (event) => {
+    const zone = dropTarget(event);
+    if (!zone) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (!zone.classList.contains("is-over")) {
+      clearDropTargets();
+      zone.classList.add("is-over");
+    }
+  });
+
+  document.addEventListener("dragleave", (event) => {
+    const zone = dropTarget(event);
+    if (zone && !zone.contains(event.relatedTarget)) zone.classList.remove("is-over");
+  });
+
+  document.addEventListener("drop", (event) => {
+    const zone = dropTarget(event);
+    if (!zone) return;
+    event.preventDefault();
+    const card = draggedCard;
+    const data = $("[data-open-application]", card).dataset;
+    const status = zone.dataset.dropStatus;
+    if (status === data.status) return;
+    const form = $("[data-board-form]");
+    form.action = `/applications/${data.applicationId}/status`;
+    form.elements.namedItem("status").value = status;
+    form.dataset.toast = `${data.organizationName} moved to ${zone.querySelector("h2")?.textContent || zone.textContent.trim()}`;
+    card.classList.add("is-busy");
+    submitInPlace(form).finally(() => card.classList.remove("is-busy"));
+  });
+
   // Global event delegation
 
   document.addEventListener("click", (event) => {
@@ -594,6 +702,13 @@
       const row = findApplication(currentApplicationID);
       if (row) fillEditForm(row.dataset);
       showDrawerView();
+      return;
+    }
+    const chip = target.closest("[data-chip]");
+    if (chip) {
+      activeChip = chip.dataset.chip;
+      $$("[data-chip]").forEach((other) => other.setAttribute("aria-pressed", String(other === chip)));
+      applySearch();
       return;
     }
     const portal = target.closest("[data-portal-link]");

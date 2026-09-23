@@ -6,12 +6,12 @@ The application is intentionally designed for one person running it on their own
 
 ## Features
 
-- A **Today** view that leads with what needs doing: open applications due for a portal check (with one-click "open portal" and "mark checked"), active conversations, and recently added applications, alongside pipeline counts and search activity.
+- A **Today** view that leads with what needs doing: a daily portal round with progress for the day, one-click "open portal" and "mark checked", and a one-click close as No response for applications that have gone too long without a reply (30 days by default). It also shows active conversations, pipeline counts, a 16-week activity heatmap, and outcomes including the median time to a reply.
 - Track open and closed job applications with salary ranges, work location, application dates, links, and notes.
 - Move applications through Applied, Interviewing, and Offer, or close them as Rejected, No response, or Withdrawn, from a details panel; status changes and portal checks update the page in place.
-- Search, filter by status, salary, and organization, and sort the full application list.
+- Search, filter by status, salary, and organization, and sort the full application list as a table, or switch to a **board** with a column per stage and drag cards between columns to change their status.
 - Surface open applications due for a portal check using your chosen interval (seven days by default).
-- Reuse organizations across applications and maintain their career-portal URLs; the directory flags organizations with open applications but no portal link.
+- Reuse organizations across applications and maintain their career-portal URLs; the directory shows each organization's applications by status and filters to organizations with open applications or with open applications but no portal link.
 - Hide salary amounts with one click for screen sharing.
 - Keyboard shortcuts: <kbd>N</kbd> for a new application, <kbd>/</kbd> to search, <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to save a dialog.
 - Light and dark themes: follow the system setting or pick one under Settings → Appearance. The layout also works on phones.
@@ -75,9 +75,9 @@ Application and organization mutations return `303 See Other` and redirect the b
 
 ### Settings
 
-The sidebar Settings dialog saves your optional name and a portal-check interval of 1–365 whole calendar days. Settings are stored in SQLite and shared across this local workspace. Open applications become due when the days since their last check reach the interval; never-checked applications are always due. Changing the interval does not change existing check timestamps or weekly activity metrics.
+The Settings dialog saves your optional name, a portal-check interval, and a close-out suggestion threshold, each interval 1–365 whole calendar days. Settings are stored in SQLite and shared across this local workspace. Open applications become due when the days since their last check reach the interval; never-checked applications are always due. Changing the interval does not change existing check timestamps or weekly activity metrics. Applications still marked Applied once the close-out threshold (30 days by default) has passed since they were sent get a one-click close as No response in the portal round.
 
-`POST /settings` accepts `name` (up to 100 characters) and `portal_check_days`. It returns `204` on success or `422` for invalid values. The dialog reloads the current page after saving, preserving application filters.
+`POST /settings` accepts `name` (up to 100 characters), `portal_check_days`, and `quiet_after_days`. It returns `204` on success or `422` for invalid values. The dialog reloads the current page after saving, preserving application filters.
 
 The Settings dialog also has an **Appearance** choice (System, Light, or Dark), remembered in the current browser and applied immediately. System follows the operating system and updates when it changes.
 
@@ -88,8 +88,8 @@ The Settings dialog, and the eye button in the sidebar, include **Hide salaries*
 | Method | Path | Purpose | Success response |
 | --- | --- | --- | --- |
 | `GET` | `/` | Render the search overview | `200` HTML |
-| `POST` | `/settings` | Save name and portal-check interval | `204` |
-| `GET` | `/applications` | Render applications with optional `status`, `income`, `organization`, `sort`, and `q` parameters | `200` HTML |
+| `POST` | `/settings` | Save name, portal-check interval, and close-out threshold | `204` |
+| `GET` | `/applications` | Render applications with optional `status`, `income`, `organization`, `sort`, `q`, and `view` parameters | `200` HTML |
 | `GET` | `/organizations` | Render the organization directory and editor dialog | `200` HTML |
 | `POST` | `/organizations/{id}` | Update an organization | `303` to `/organizations?saved={id}` |
 | `POST` | `/applications` | Create an application | `303` to the applications page or `/` |
@@ -109,6 +109,7 @@ Application mutations return to the applications page, with its filters, when th
 | `organization` | An organization ID |
 | `sort` | Omitted for newest added, `applied` for applied date, `salary` for highest salary maximum, `checked` for longest since the last portal check |
 | `q` | Up to 100 characters; every word must appear in the organization, role, or notes |
+| `view` | `board` to show the applications as a board with Applied, Interviewing, Offer, and Closed columns. The board ignores `status`. |
 
 Route IDs must be positive integers.
 
@@ -142,7 +143,9 @@ Allowed application statuses are:
 
 Migration `00003` replaced the former `accepted` status with `offer` and added `withdrawn`. Existing `accepted` rows become `offer`. Rolling it back turns `offer` into `accepted` and `withdrawn` into `rejected_no_contact`.
 
-The Today view lists every open application due for a portal check, every offer and interviewing application (offers first, then the longest since their status changed), and the five most recently added applications of any status. The applications page includes all statuses.
+Every status an application enters is recorded in `application_status_changes`, including the initial `applied` status when it is created. The details panel shows this history as a timeline, and the Today view uses the first move to Interviewing, Offer, or Rejected to measure the median time to a reply. Migration `00004` created the table and backfilled it from what the applications table already held: an `applied` entry at each application's creation time, plus an entry for its current status at `status_changed_at` when that status isn't `applied`. Intermediate changes made before the migration are not known. Migration `00005` added the `quiet_after_days` setting with a default of 30. Both migrations only add tables and columns; rolling them back drops only what they added.
+
+The Today view lists every open application due for a portal check, every offer and interviewing application (offers first, then the longest since their status changed), and a 16-week heatmap of applications by applied date (or date added when no applied date is recorded). Applied-status applications sent at least the close-out threshold ago are marked in the portal round and can be closed as No response in one click. The round's progress counts open applications checked today, excluding applications added today. The applications page includes all statuses.
 
 ### Create an application
 

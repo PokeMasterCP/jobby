@@ -25,6 +25,13 @@ type Application struct {
 	UpdatedAt       string
 }
 
+type ApplicationStatusChange struct {
+	ID            int64
+	ApplicationID int64
+	Status        string
+	ChangedAt     string
+}
+
 type Organization struct {
 	ID         int64
 	Name       string
@@ -37,4 +44,5 @@ type Setting struct {
 	ID              int64
 	Name            string
 	PortalCheckDays int64
+	QuietAfterDays  int64
 }

@@ -2,19 +2,27 @@
 <main class="main" id="main-content" data-swap="main">
   <header class="page-header">
     <div>
+      <p class="eyebrow">{{.ApplicationCount}} total · {{.OpenCount}} open</p>
       <h1>Applications</h1>
-      <p class="page-summary">{{.ApplicationCount}} total <span aria-hidden="true">·</span> {{.OpenCount}} open{{if .DueCount}} <span aria-hidden="true">·</span> <a href="/">{{.DueCount}} portal {{if eq .DueCount 1}}check{{else}}checks{{end}} due</a>{{end}}</p>
+      {{if .DueCount}}<p class="lede"><a href="/">{{.DueCount}} portal {{if eq .DueCount 1}}check{{else}}checks{{end}} due today{{template "icon" "arrow-right"}}</a></p>{{end}}
     </div>
+    <nav class="view-switch" aria-label="View">
+      <a href="{{.TableURL}}" {{if ne .Filters.View "board"}}aria-current="page"{{end}}>{{template "icon" "rows"}}Table</a>
+      <a href="{{.BoardURL}}" {{if eq .Filters.View "board"}}aria-current="page"{{end}}>{{template "icon" "grid"}}Board</a>
+    </nav>
   </header>
 
+  {{if ne .Filters.View "board"}}
   <nav class="tabs" aria-label="Filter by status">
     {{range .StatusTabs}}
       <a href="{{.URL}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}<span>{{.Count}}</span></a>
     {{end}}
   </nav>
+  {{end}}
 
   <form class="toolbar" method="get" action="/applications" data-filter-form>
     {{with .Filters.Status}}<input type="hidden" name="status" value="{{.}}">{{end}}
+    {{with .Filters.View}}<input type="hidden" name="view" value="{{.}}">{{end}}
     <label class="search">
       {{template "icon" "search"}}
       <input type="search" name="q" value="{{.Filters.Query}}" placeholder="Search organization, role, or notes" aria-label="Search applications" autocomplete="off" data-search-input data-server-query="{{.Filters.Query}}">
@@ -40,16 +48,71 @@
         <option value="checked" {{if eq .Filters.Sort "checked"}}selected{{end}}>Longest since check</option>
       </select>
       <button class="button" type="submit" data-no-js>Apply</button>
-      {{if .HasFilters}}<a class="button button-ghost" href="/applications{{with .Filters.Status}}?status={{.}}{{end}}">{{template "icon" "x"}}Clear</a>{{end}}
+      {{if .HasFilters}}<a class="button button-ghost" href="{{.ClearURL}}">{{template "icon" "x"}}Clear</a>{{end}}
     </div>
   </form>
 
-  <section class="card table-card" aria-label="Applications">
+  {{if eq .Filters.View "board"}}
+    {{if .ApplicationCount}}
+      <div class="board" data-board>
+        {{range .BoardColumns}}
+          <section class="board-column {{.StatusClass}}" aria-label="{{.Label}}" {{with .Status}}data-drop-status="{{.}}"{{end}}>
+            <header class="board-column-header">
+              <h2>{{.Label}}</h2>
+              <span class="board-count">{{len .Applications}}</span>
+              <p>{{.Hint}}</p>
+            </header>
+            {{if not .Status}}
+              <div class="board-drop-zones" aria-hidden="true">
+                <span class="status-rejected" data-drop-status="rejected_after_contact">Rejected</span>
+                <span class="status-closed" data-drop-status="rejected_no_contact">No response</span>
+                <span class="status-withdrawn" data-drop-status="withdrawn">Withdrawn</span>
+              </div>
+            {{end}}
+            <ol class="board-cards">
+              {{range .Applications}}
+                <li class="board-card" draggable="true" data-board-card data-search-item data-search-text="{{.OrganizationName}} {{.RoleTitle}} {{.Notes}}">
+                  <button class="board-card-link" type="button" aria-haspopup="dialog" {{template "application-data" .}}>
+                    <span class="board-card-org">{{template "org-mark" .}}<strong>{{.OrganizationName}}</strong></span>
+                    <span class="board-card-role">{{.RoleTitle}}</span>
+                    <span class="board-card-meta">
+                      {{if not (eq .Status "applied" "in_contact" "offer")}}{{template "status-dot" .}}{{end}}
+                      {{if ne .Salary "Not listed"}}<span>{{template "salary" .Salary}}</span>{{end}}
+                      <span>{{.Location}}</span>
+                      <span>{{.AppliedAgo}}</span>
+                      {{if .LastCheckedIsDue}}<span class="badge badge-due">{{template "icon" "clock"}}Check due</span>{{end}}
+                    </span>
+                  </button>
+                </li>
+              {{end}}
+            </ol>
+          </section>
+        {{end}}
+      </div>
+      <div class="empty-state" data-search-empty hidden>
+        <span class="empty-icon">{{template "icon" "search"}}</span>
+        <h3>No matches</h3>
+        <p>Nothing here matches “<span data-search-term></span>”.</p>
+      </div>
+      <p class="board-hint">Drag a card to another column to change its status, or select it for details.</p>
+      <form method="post" data-board-form data-swap-form hidden><input type="hidden" name="status"></form>
+    {{else}}
+      <section class="panel">
+        <div class="empty-state">
+          <span class="empty-icon">{{template "icon" "inbox"}}</span>
+          <h3>No applications yet</h3>
+          <p>Every application you track will be listed here.</p>
+          <button class="button button-primary" type="button" data-open-create>{{template "icon" "plus"}}New application</button>
+        </div>
+      </section>
+    {{end}}
+  {{else}}
+  <section class="panel table-panel" aria-label="Applications">
     {{if .Applications}}
       <div class="table-head" aria-hidden="true">
         <span>Organization &amp; role</span>
         <span>Status</span>
-        <span>Salary</span>
+        <span class="cell-num">Salary</span>
         <span class="col-location">Location</span>
         <span>Applied</span>
         <span>Portal check</span>
@@ -61,10 +124,10 @@
               {{template "org-mark" .}}
               <span class="row-title"><strong>{{.OrganizationName}}</strong><span>{{.RoleTitle}}</span></span>
             </button>
-            <span class="cell">{{template "status-pill" .}}</span>
+            <span class="cell cell-stack">{{template "status-dot" .}}{{if ne .Status "applied"}}<small>{{.StatusSince}}</small>{{end}}</span>
             <span class="cell cell-num">{{template "salary" .Salary}}</span>
             <span class="cell cell-muted col-location">{{if eq .WorkLocation "remote"}}{{template "icon" "globe"}}{{else}}{{template "icon" "pin"}}{{end}}{{.Location}}</span>
-            <span class="cell cell-stack"><span>{{.AppliedAgo}}</span><small>{{.AppliedAtDisplay}}</small></span>
+            <span class="cell cell-stack col-applied"><span>{{.AppliedAgo}}</span><small>{{.AppliedAtDisplay}}</small></span>
             <span class="cell cell-check">
               {{if not .NeedsPortalCheck}}
                 <span class="muted" title="Portal checks stop once an application has an offer or is closed">—</span>
@@ -84,7 +147,7 @@
         <h3>No matches</h3>
         <p>Nothing here matches “<span data-search-term></span>”.</p>
       </div>
-      <footer class="card-footer">
+      <footer class="panel-footer">
         <span><span data-search-count>{{.FilteredCount}}</span> of {{.ApplicationCount}} shown</span>
         <span class="shortcut-hint">Select a row for details</span>
       </footer>
@@ -104,6 +167,7 @@
       </div>
     {{end}}
   </section>
+  {{end}}
 </main>
 {{template "application-drawer" .}}
 {{template "shell-end" .}}

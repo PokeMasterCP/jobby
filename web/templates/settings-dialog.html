@@ -23,6 +23,12 @@
           <small class="field-hint" id="portal-interval-help">Open applications are due for a check this many days after the last one. Never-checked applications are always due.</small>
         </label>
 
+        <label class="field">
+          <span class="field-label">Suggest closing after</span>
+          <span class="input-affix input-affix-end"><input name="quiet_after_days" type="number" min="1" max="365" step="1" required value="{{.QuietAfterDays}}" aria-describedby="quiet-after-help"><span aria-hidden="true">days</span></span>
+          <small class="field-hint" id="quiet-after-help">Applications still marked Applied this long after you sent them get a one-click close as No response in the portal round.</small>
+        </label>
+
         <fieldset class="field">
           <legend class="field-label">Appearance <small>This browser only · applies immediately</small></legend>
           <div class="segmented">
