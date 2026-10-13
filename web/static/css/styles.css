@@ -851,6 +851,12 @@ kbd {
   background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
 }
 
+/* The name button fills its column, so the default outline is a wide red box around the text. */
+.list-row:has(.row-link:focus-visible) {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .list-row.is-busy {
   opacity: 0.45;
   pointer-events: none;
@@ -883,6 +889,10 @@ kbd {
   text-decoration: underline;
   text-decoration-color: var(--border-strong);
   text-underline-offset: 3px;
+}
+
+.row-link:focus-visible {
+  outline: none;
 }
 
 .row-title {
@@ -1897,6 +1907,15 @@ kbd {
   box-shadow: var(--shadow-md);
 }
 
+.board-card:has(.board-card-link:focus-visible) {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-soft);
+}
+
+.board-card-link:focus-visible {
+  outline: none;
+}
+
 .board-card.is-dragging {
   opacity: 0.35;
   transform: scale(0.98);
@@ -2135,6 +2154,10 @@ dialog {
   margin-left: auto;
 }
 
+.drawer:focus {
+  outline: none;
+}
+
 .drawer {
   inset: 0 0 0 auto;
   width: min(560px, 100vw);
@@ -2175,6 +2198,9 @@ dialog {
 }
 
 .drawer-org {
+  justify-self: start;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   color: var(--text-2);
   font-size: 13.5px;
@@ -2184,9 +2210,12 @@ dialog {
   white-space: nowrap;
 }
 
-.drawer-org:hover {
+.drawer-org:hover,
+.drawer-org:focus-visible {
   color: var(--accent-text);
+  outline: none;
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .drawer-heading h2 {

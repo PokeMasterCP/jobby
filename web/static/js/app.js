@@ -328,6 +328,9 @@
     fillEditForm(data);
     showDrawerView();
     openDialog(drawer);
+    // The organization link is the dialog's first tab stop. Leaving focus there
+    // outlines that link, which reads as a red box around the name.
+    drawer.focus({ preventScroll: true });
   };
 
   drawer?.addEventListener("change", (event) => {

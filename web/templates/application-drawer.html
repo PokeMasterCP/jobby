@@ -1,5 +1,5 @@
 {{define "application-drawer"}}
-<dialog class="drawer" id="application-drawer" aria-labelledby="drawer-title" {{if .EditApplicationForm.HasErrors}}data-open-on-load data-application-id="{{.SelectedApplicationID}}"{{end}}>
+<dialog class="drawer" id="application-drawer" tabindex="-1" aria-labelledby="drawer-title" {{if .EditApplicationForm.HasErrors}}data-open-on-load data-application-id="{{.SelectedApplicationID}}"{{end}}>
   <div class="drawer-panel">
     <header class="drawer-header">
       <span class="org-mark org-mark-large" aria-hidden="true" data-field="mark"></span>
