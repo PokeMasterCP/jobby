@@ -993,14 +993,14 @@ func newLayoutData(page string, settings database.GetSettingsRow, applications [
 	for _, organization := range organizations {
 		data.OrganizationChoices = append(data.OrganizationChoices, organizationChoice{
 			Name:       organization.Name,
-			CareersURL: nullStringValue(organization.CareersUrl),
+			CareersURL: careerPortalURL(organization.CareersUrl),
 		})
 	}
 	for _, application := range applications {
 		if isOpenStatus(application.Status) {
 			data.OpenCount++
 		}
-		if !needsPortalCheck(application.Status) {
+		if !needsPortalCheck(application.Status, careerPortalURL(application.OrganizationCareersUrl)) {
 			continue
 		}
 		if _, _, isDue := formatLastChecked(application.LastCheckedAt, now, int(settings.PortalCheckDays)); isDue {
@@ -1446,7 +1446,7 @@ func parseApplicationForm(r *http.Request, includeStatus bool) (applicationFormV
 }
 
 func newOrganizationView(organization database.ListOrganizationsRow, applications []database.ListApplicationsRow, now time.Time) organizationView {
-	careersURL := nullStringValue(organization.CareersUrl)
+	careersURL := careerPortalURL(organization.CareersUrl)
 	portalLabel := "Not saved"
 	if careersURL != "" {
 		portalLabel = "Portal saved"
@@ -1568,9 +1568,16 @@ func isOpenStatus(status string) bool {
 	return status == "applied" || status == "in_contact" || status == "offer"
 }
 
-// Portal checks look for news on an application, which stops mattering once an offer arrives.
-func needsPortalCheck(status string) bool {
-	return status == "applied" || status == "in_contact"
+// A portal is saved only when the organization has a careers URL with something
+// other than whitespace. Null, empty, and blank values are the same as no portal.
+func careerPortalURL(value sql.NullString) string {
+	return strings.TrimSpace(nullStringValue(value))
+}
+
+// Portal checks look for news on the organization's career portal. They stop once
+// an offer arrives, and they are skipped when that portal is missing or blank.
+func needsPortalCheck(status, careersURL string) bool {
+	return (status == "applied" || status == "in_contact") && strings.TrimSpace(careersURL) != ""
 }
 
 func isApplicationStatus(status string) bool {
@@ -1585,6 +1592,8 @@ func isApplicationStatus(status string) bool {
 func newApplicationView(application database.ListApplicationsRow, changes []database.ListStatusChangesRow, now time.Time, settings database.GetSettingsRow) applicationView {
 	lastChecked, lastCheckedDetail, lastCheckedIsDue := formatLastChecked(application.LastCheckedAt, now, int(settings.PortalCheckDays))
 	statusLabel, statusClass := formatStatus(application.Status)
+	careersURL := careerPortalURL(application.OrganizationCareersUrl)
+	portalCheck := needsPortalCheck(application.Status, careersURL)
 
 	statusSince, statusDays := "", 0
 	if changedAt, err := time.Parse(time.RFC3339Nano, application.StatusChangedAt); err == nil {
@@ -1612,7 +1621,7 @@ func newApplicationView(application database.ListApplicationsRow, changes []data
 		WorkLocation:        application.WorkLocation,
 		StatusLabel:         statusLabel,
 		StatusClass:         statusClass,
-		CareersURL:          nullStringValue(application.OrganizationCareersUrl),
+		CareersURL:          careersURL,
 		PostingURL:          nullStringValue(application.PostingUrl),
 		AppliedAt:           nullStringValue(application.AppliedAt),
 		AppliedAtDisplay:    formatAppliedAt(application.AppliedAt),
@@ -1625,8 +1634,8 @@ func newApplicationView(application database.ListApplicationsRow, changes []data
 		StatusDays:          statusDays,
 		LastChecked:         lastChecked,
 		LastCheckedDetail:   lastCheckedDetail,
-		LastCheckedIsDue:    lastCheckedIsDue && needsPortalCheck(application.Status),
-		NeedsPortalCheck:    needsPortalCheck(application.Status),
+		LastCheckedIsDue:    lastCheckedIsDue && portalCheck,
+		NeedsPortalCheck:    portalCheck,
 		Notes:               nullStringValue(application.Notes),
 	}
 }
