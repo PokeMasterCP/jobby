@@ -130,7 +130,11 @@
             <span class="cell cell-stack col-applied"><span>{{.AppliedAgo}}</span><small>{{.AppliedAtDisplay}}</small></span>
             <span class="cell cell-check">
               {{if not .NeedsPortalCheck}}
-                <span class="muted" title="Portal checks stop once an application has an offer or is closed">—</span>
+                {{if or (eq .Status "applied") (eq .Status "in_contact")}}
+                  <span class="muted" title="No career portal saved for this organization">—</span>
+                {{else}}
+                  <span class="muted" title="Portal checks stop once an application has an offer or is closed">—</span>
+                {{end}}
               {{else if .LastCheckedIsDue}}
                 <form method="post" action="/applications/{{.ID}}/checked" data-swap-form data-toast="{{.OrganizationName}} marked as checked">
                   <button class="badge badge-due badge-button" type="submit" title="Mark checked" aria-label="Portal check due ({{.LastChecked}}). Mark {{.OrganizationName}} as checked">{{template "icon" "clock"}}<span class="badge-default">{{if eq .LastChecked "Never checked"}}Never{{else}}{{.LastChecked}}{{end}}</span><span class="badge-hover">{{template "icon" "check"}}Checked</span></button>

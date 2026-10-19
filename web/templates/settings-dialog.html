@@ -20,7 +20,7 @@
         <label class="field">
           <span class="field-label">Portal check interval</span>
           <span class="input-affix input-affix-end"><input name="portal_check_days" type="number" min="1" max="365" step="1" required value="{{.PortalCheckDays}}" aria-describedby="portal-interval-help"><span aria-hidden="true">days</span></span>
-          <small class="field-hint" id="portal-interval-help">Open applications are due for a check this many days after the last one. Never-checked applications are always due.</small>
+          <small class="field-hint" id="portal-interval-help">Open applications with a career portal are due this many days after the last check. Never-checked applications with a portal are always due. A missing or blank portal is left out.</small>
         </label>
 
         <label class="field">

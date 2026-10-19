@@ -10,7 +10,7 @@ The application is intentionally designed for one person running it on their own
 - Track open and closed job applications with salary ranges, work location, application dates, links, and notes.
 - Move applications through Applied, Interviewing, and Offer, or close them as Rejected, No response, or Withdrawn, from a details panel; status changes and portal checks update the page in place.
 - Search, filter by status, salary, and organization, and sort the full application list as a table, or switch to a **board** with a column per stage and drag cards between columns to change their status.
-- Surface open applications due for a portal check using your chosen interval (seven days by default).
+- Surface open applications that have a career portal and are due for a portal check, using your chosen interval (seven days by default). Applications whose organization has no portal are left out of the check.
 - Reuse organizations across applications and maintain their career-portal URLs; the directory shows each organization's applications by status and filters to organizations with open applications or with open applications but no portal link.
 - Hide salary amounts with one click for screen sharing.
 - Keyboard shortcuts: <kbd>N</kbd> for a new application, <kbd>/</kbd> to search, <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to save a dialog.
@@ -75,7 +75,7 @@ Application and organization mutations return `303 See Other` and redirect the b
 
 ### Settings
 
-The Settings dialog saves your optional name, a portal-check interval, and a close-out suggestion threshold, each interval 1–365 whole calendar days. Settings are stored in SQLite and shared across this local workspace. Open applications become due when the days since their last check reach the interval; never-checked applications are always due. Changing the interval does not change existing check timestamps or weekly activity metrics. Applications still marked Applied once the close-out threshold (30 days by default) has passed since they were sent get a one-click close as No response in the portal round.
+The Settings dialog saves your optional name, a portal-check interval, and a close-out suggestion threshold, each interval 1–365 whole calendar days. Settings are stored in SQLite and shared across this local workspace. Open applications with a saved career portal become due when the days since their last check reach the interval; never-checked applications with a portal are always due. A null, empty, or whitespace-only portal counts as no portal, so those applications are not part of the check. Changing the interval does not change existing check timestamps or weekly activity metrics. Applications still marked Applied once the close-out threshold (30 days by default) has passed since they were sent get a one-click close as No response in the portal round.
 
 `POST /settings` accepts `name` (up to 100 characters), `portal_check_days`, and `quiet_after_days`. It returns `204` on success or `422` for invalid values. The dialog reloads the current page after saving, preserving application filters.
 
@@ -134,8 +134,8 @@ Allowed application statuses are:
 
 | Value | Label | Meaning | Stage |
 | --- | --- | --- | --- |
-| `applied` | Applied | Applied and awaiting contact | Open, portal checks due |
-| `in_contact` | Interviewing | Talking with the organization | Open, portal checks due |
+| `applied` | Applied | Applied and awaiting contact | Open; portal checks due when the organization has a career portal |
+| `in_contact` | Interviewing | Talking with the organization | Open; portal checks due when the organization has a career portal |
 | `offer` | Offer | Received an offer | Open, no portal checks |
 | `rejected_after_contact` | Rejected | Rejected after communication or interviews | Closed |
 | `rejected_no_contact` | No response | Rejected without contact, or never heard back | Closed |
@@ -145,7 +145,7 @@ Migration `00003` replaced the former `accepted` status with `offer` and added `
 
 Every status an application enters is recorded in `application_status_changes`, including the initial `applied` status when it is created. The details panel shows this history as a timeline, and the Today view uses the first move to Interviewing, Offer, or Rejected to measure the median time to a reply. Migration `00004` created the table and backfilled it from what the applications table already held: an `applied` entry at each application's creation time, plus an entry for its current status at `status_changed_at` when that status isn't `applied`. Intermediate changes made before the migration are not known. Migration `00005` added the `quiet_after_days` setting with a default of 30. Both migrations only add tables and columns; rolling them back drops only what they added.
 
-The Today view lists every open application due for a portal check, every offer and interviewing application (offers first, then the longest since their status changed), and a 16-week heatmap of applications by applied date (or date added when no applied date is recorded). Applied-status applications sent at least the close-out threshold ago are marked in the portal round and can be closed as No response in one click. The round's progress counts open applications checked today, excluding applications added today. The applications page includes all statuses.
+The Today view lists every open application that has a career portal and is due for a portal check, every offer and interviewing application (offers first, then the longest since their status changed), and a 16-week heatmap of applications by applied date (or date added when no applied date is recorded). Applied-status applications sent at least the close-out threshold ago are marked in the portal round and can be closed as No response in one click. The round's progress counts applications with a portal that were checked today, excluding applications added today. The applications page includes all statuses.
 
 ### Create an application
 
@@ -210,9 +210,10 @@ Timestamps are stored as UTC RFC 3339-style strings. Relative last-checked label
 │   └── templates/         Server-rendered HTML templates
 ├── Dockerfile
 ├── main.go                Server setup, handlers, validation, and view models
+├── portal_check_test.go   Portal-check selection fixtures
 └── sqlc.yaml
 ```
 
 ## Tests
 
-The repository currently has no test files. `go test ./...` still compiles every package and should be run before submitting a change.
+`go test ./...` runs the portal-check fixtures in `portal_check_test.go`. The fixtures include open applications with a career portal, open applications whose organization portal is null, empty, or whitespace, and closed applications. The check includes only the open applications that have a portal.
